@@ -27,6 +27,7 @@ auto AudioPlayer::Create(SDL_AudioSpec spec, const std::optional<std::string>& a
         return nullptr;
     }
 
+    player->Spec_ = spec;
     player->Out_ = out;
 
     return std::shared_ptr<AudioPlayer> {
@@ -113,6 +114,14 @@ auto AudioPlayer::QueueSize() const noexcept -> size_t
 {
     std::lock_guard _ { BufferLock_ };
     return Buffer_.size();
+}
+
+auto AudioPlayer::DurationLeft() const noexcept -> time_t
+{
+    std::lock_guard _ { BufferLock_ };
+    {
+        return AudioUtils::EstimateBufferDuration(BufferLength_, Spec_);
+    }
 }
 
 void AudioPlayer::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept

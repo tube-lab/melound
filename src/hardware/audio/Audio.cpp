@@ -12,11 +12,7 @@ auto Audio::Buffer() const noexcept -> const std::vector<Uint8>&
 
 auto Audio::Duration() const noexcept -> time_t
 {
-    int sampleSize = SDL_AUDIO_BITSIZE(Specs_.format) / 8;
-    int channels = Specs_.channels ? Specs_.channels : 1;
-
-    time_t samplesPerChannel = (time_t)Buffer_.size() / (channels*sampleSize);
-    return (1000*samplesPerChannel) / Specs_.freq;
+    return AudioUtils::EstimateBufferDuration(Buffer_.size(), Specs_);
 }
 
 auto Audio::Specs() const noexcept -> const SDL_AudioSpec&

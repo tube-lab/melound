@@ -1,7 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include <SDL2/SDL.h>
+#include "AudioUtils.h"
 
 #include <optional>
 #include <vector>

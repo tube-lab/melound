@@ -30,13 +30,14 @@ namespace ml
             size_t Idx;
         };
 
-        SDL_AudioDeviceID Out_;
+        SDL_AudioSpec Spec_ {};
+        SDL_AudioDeviceID Out_ {};
 
         std::atomic<bool> Paused_;
         std::atomic<bool> Muted_;
 
         std::deque<Entry> Buffer_;
-        size_t BufferLength_;
+        size_t BufferLength_ {};
         mutable std::mutex BufferLock_;
 
     public:
@@ -72,6 +73,9 @@ namespace ml
 
         /** Returns the current size of the queue. */
         auto QueueSize() const noexcept -> size_t;
+
+        /** Determines for how long the player will continue to play. */
+        auto DurationLeft() const noexcept -> time_t;
 
     private:
         AudioPlayer() noexcept = default;

@@ -9,10 +9,9 @@
 // POST {sink-id}/play + data
 // POST {sink-id}/stop
 
-// GET {sink-id}/buffer-length
+// GET {sink-id}/buffer-duration
 // GET {sink-id}/opening-time + mode
 // GET {sink-id}/timeout
-// GET {sink-id}/status
 
 using namespace ml;
 

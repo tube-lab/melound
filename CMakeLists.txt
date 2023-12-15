@@ -21,6 +21,8 @@ add_executable(melound src/main.cpp
         src/hardware/bell/BellDriver.cpp
         include/utils/Mask.h
         include/hardware/bell/BellSink.h
+        include/hardware/audio/AudioUtils.h
+        src/hardware/audio/AudioUtils.cpp
 )
 
 # Add SDL2 library
