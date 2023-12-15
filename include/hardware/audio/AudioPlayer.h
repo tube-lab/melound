@@ -46,8 +46,11 @@ namespace ml
         /** Plays the audio track. Fails only if audio device is incompatible with the audio. Doesn't clear the pause state. */
         auto Enqueue(const Audio& audio) noexcept -> std::future<void>;
 
-        /** Stops the audio playback. Playback will be stopped immediately. Doesn't clear the pause state. */
-        void Stop() noexcept;
+        /** Empties the queue. Playback will be stopped immediately. Doesn't clear the pause state. */
+        void Clear() noexcept;
+
+        /** Drops the first track in the queue and immediately moves to the next one. */
+        void Skip() noexcept;
 
         /** Temporary pauses a playback. */
         void Pause() noexcept;
@@ -67,8 +70,8 @@ namespace ml
         /** Returns the mute state. */
         auto Muted() const noexcept -> bool;
 
-        /** Returns if player has a track */
-        auto Active() const noexcept -> bool;
+        /** Returns the current size of the queue. */
+        auto QueueSize() const noexcept -> size_t;
 
     private:
         AudioPlayer() noexcept = default;

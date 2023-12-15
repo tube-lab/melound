@@ -3,7 +3,6 @@
 using namespace ml;
 
 #include <iostream>
-#define critical_section(mutex) // TODO: Write normal mutex protection
 
 auto AudioPlayer::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice) -> std::shared_ptr<AudioPlayer>
 {
@@ -37,13 +36,13 @@ auto AudioPlayer::Create(SDL_AudioSpec spec, const std::optional<std::string>& a
 
 AudioPlayer::~AudioPlayer()
 {
-    Stop();
+    Clear();
 }
 
 auto AudioPlayer::Enqueue(const Audio& audio) noexcept -> std::future<void>
 {
     // Open the audio device ( for this audio )
-    critical_section(BufferLock_)
+    std::lock_guard _ { BufferLock_ };
     {
         // Add new track to the queue
         Buffer_.emplace_back(audio.Buffer(), std::promise<void> {}, 0);
@@ -57,9 +56,9 @@ auto AudioPlayer::Enqueue(const Audio& audio) noexcept -> std::future<void>
     };
 }
 
-void AudioPlayer::Stop() noexcept
+void AudioPlayer::Clear() noexcept
 {
-    critical_section(BufferLock_)
+    std::lock_guard _ { BufferLock_ };
     {
         while (!Buffer_.empty())
         {
@@ -67,6 +66,15 @@ void AudioPlayer::Stop() noexcept
             Buffer_.pop_front();
         }
     };
+}
+
+void AudioPlayer::Skip() noexcept
+{
+    std::lock_guard _ { BufferLock_ };
+    {
+        Buffer_.front().Listener.set_value();
+        Buffer_.pop_front();
+    }
 }
 
 void AudioPlayer::Pause() noexcept
@@ -101,10 +109,10 @@ auto AudioPlayer::Muted() const noexcept -> bool
     return Muted_;
 }
 
-auto AudioPlayer::Active() const noexcept -> bool
+auto AudioPlayer::QueueSize() const noexcept -> size_t
 {
     std::lock_guard _ { BufferLock_ };
-    return !Buffer_.empty();
+    return Buffer_.size();
 }
 
 void AudioPlayer::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept

@@ -25,13 +25,13 @@ namespace ml
         static auto Create(const BellConfig& config) noexcept -> std::shared_ptr<BellDriver>;
         ~BellDriver();
 
-        auto Startup(bool urgent, int inactiveTimeout) noexcept -> std::future<uint>;
-        auto Shutdown() noexcept -> std::future<void>;
+        auto Open(std::string_view sink, int mode) noexcept -> bool;
+        auto Close(std::string_view sink) noexcept -> bool;
 
-        auto Play(const std::vector<bool>& audio) noexcept -> std::future<bool>;
-        auto Stop() const noexcept -> std::optional<size_t>;
+        auto Play(std::string_view sink, const Audio& audio) noexcept -> bool;
+        void Stop() noexcept;
 
-        auto StartupDuration() noexcept -> uint;
+        auto RemainingBufferLength() ->
 
     private:
         BellDriver(const BellConfig& config) noexcept;
