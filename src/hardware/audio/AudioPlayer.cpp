@@ -53,7 +53,7 @@ auto AudioPlayer::Enqueue(const Audio& audio) noexcept -> std::future<void>
         SDL_QueueAudio(Out_, &Buffer_.back().Data[0], Buffer_.back().Data.size());
         SDL_PauseAudioDevice(Out_, Paused_);
 
-        return Buffer_.front().Listener.get_future();
+        return Buffer_.back().Listener.get_future();
     };
 }
 

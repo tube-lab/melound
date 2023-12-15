@@ -5,6 +5,7 @@
 
 namespace ml
 {
+    /** A bunch of audio parsers. Directly works with the data from the memory. */
     class AudioLoader
     {
     public:

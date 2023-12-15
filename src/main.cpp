@@ -12,18 +12,29 @@
 
 using namespace ml;
 
+auto FromFile(std::string path)
+{
+    std::ifstream ifs { path };
+    std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
+    return AudioLoader::FromWav(data);
+}
+
 auto main() -> int
 {
     std::ifstream ifs { "./sound.wav" };
     std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
 
-    auto track = *AudioLoader::FromWav(data);
+    auto track = *FromFile("sound.wav");
 
     auto player = AudioPlayer::Create(track.Specs());
-    auto f = player->Enqueue(track);
+    auto f = player->Enqueue(*FromFile("melody.wav"));
+    auto g = player->Enqueue(*FromFile("sound.wav"));
 
     f.wait();
-    std::cout << "Played all\n";
+    std::cout << "Played melody\n";
+
+    g.wait();
+    std::cout << "Played sound\n";
 
     return 0;
 }
