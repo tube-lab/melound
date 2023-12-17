@@ -1,15 +1,15 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "Audio.h"
+#include "Track.h"
 
-namespace ml
+namespace ml::audio
 {
     /** A bunch of audio parsers. Directly works with the data from the memory. */
-    class AudioLoader
+    class TrackLoader
     {
     public:
         /** Tries to parse audio encoded as wav. */
-        static auto FromWav(const std::vector<char> &wav) noexcept -> std::optional<Audio>;
+        static auto FromWav(const std::vector<char> &wav) noexcept -> std::optional<Track>;
     };
 }

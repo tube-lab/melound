@@ -3,10 +3,10 @@
 
 #include <SDL2/SDL.h>
 
-namespace ml
+namespace ml::audio
 {
     /** Small utils for common audio processing tasks. */
-    class AudioUtils
+    class Utils
     {
     public:
         /** Estimates the duration of the decoded audio buffer played with given specs. */

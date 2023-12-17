@@ -1,22 +1,22 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/AudioPlayer.h"
-using namespace ml;
+#include "hardware/audio/core/Player.h"
+using namespace ml::audio;
 
 #include <iostream>
 
-auto AudioPlayer::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice) -> std::shared_ptr<AudioPlayer>
+auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice) -> std::shared_ptr<Player>
 {
     SDL_Init(SDL_INIT_AUDIO);
 
     // Create the dummy player ( because we need its address in audio-supplier callback )
-    auto* player = new AudioPlayer {};
+    auto* player = new Player {};
 
     // Select the device ( if given )
     const char* device = audioDevice ? audioDevice->c_str() : nullptr;
 
     // Inject custom callback into the specs
     SDL_AudioSpec modified = spec;
-    modified.callback = &AudioPlayer::AudioSupplier;
+    modified.callback = &Player::AudioSupplier;
     modified.userdata = player;
 
     // Create the output
@@ -27,20 +27,23 @@ auto AudioPlayer::Create(SDL_AudioSpec spec, const std::optional<std::string>& a
         return nullptr;
     }
 
+    // Instantly unmute the audio device
+    SDL_PauseAudioDevice(out, false);
+
     player->Spec_ = spec;
     player->Out_ = out;
 
-    return std::shared_ptr<AudioPlayer> {
+    return std::shared_ptr<Player> {
         player
     };
 }
 
-AudioPlayer::~AudioPlayer()
+Player::~Player()
 {
     Clear();
 }
 
-auto AudioPlayer::Enqueue(const Audio& audio) noexcept -> std::future<void>
+auto Player::Enqueue(const Track& audio) noexcept -> std::future<void>
 {
     // Open the audio device ( for this audio )
     std::lock_guard _ { BufferLock_ };
@@ -49,15 +52,11 @@ auto AudioPlayer::Enqueue(const Audio& audio) noexcept -> std::future<void>
         Buffer_.emplace_back(audio.Buffer(), std::promise<void> {}, 0);
         BufferLength_ += audio.Buffer().size();
 
-        // We don't queue the audio because we use custom audio-supplier
-        SDL_QueueAudio(Out_, &Buffer_.back().Data[0], Buffer_.back().Data.size());
-        SDL_PauseAudioDevice(Out_, Paused_);
-
         return Buffer_.back().Listener.get_future();
-    };
+    }
 }
 
-void AudioPlayer::Clear() noexcept
+void Player::Clear() noexcept
 {
     std::lock_guard _ { BufferLock_ };
     {
@@ -66,69 +65,68 @@ void AudioPlayer::Clear() noexcept
             Buffer_.front().Listener.set_value();
             Buffer_.pop_front();
         }
-    };
-}
-
-void AudioPlayer::Skip() noexcept
-{
-    std::lock_guard _ { BufferLock_ };
-    {
-        Buffer_.front().Listener.set_value();
-        Buffer_.pop_front();
     }
 }
 
-void AudioPlayer::Pause() noexcept
+void Player::Skip() noexcept
+{
+    std::lock_guard _ { BufferLock_ };
+    {
+        if (!Buffer_.empty())
+        {
+            Buffer_.front().Listener.set_value();
+            Buffer_.pop_front();
+        }
+    }
+}
+
+void Player::Pause() noexcept
 {
     Paused_ = true;
     SDL_PauseAudioDevice(Out_, true);
 }
 
-void AudioPlayer::Resume() noexcept
+void Player::Resume() noexcept
 {
     Paused_ = false;
     SDL_PauseAudioDevice(Out_, false);
 }
 
-void AudioPlayer::Mute() noexcept
+void Player::Mute() noexcept
 {
     Muted_ = true;
 }
 
-void AudioPlayer::Unmute() noexcept
+void Player::Unmute() noexcept
 {
     Muted_ = false;
 }
 
-auto AudioPlayer::Paused() const noexcept -> bool
+auto Player::Paused() const noexcept -> bool
 {
     return Paused_;
 }
 
-auto AudioPlayer::Muted() const noexcept -> bool
+auto Player::Muted() const noexcept -> bool
 {
     return Muted_;
 }
 
-auto AudioPlayer::QueueSize() const noexcept -> size_t
-{
-    std::lock_guard _ { BufferLock_ };
-    return Buffer_.size();
-}
-
-auto AudioPlayer::DurationLeft() const noexcept -> time_t
+auto Player::DurationLeft() const noexcept -> time_t
 {
     std::lock_guard _ { BufferLock_ };
     {
-        return AudioUtils::EstimateBufferDuration(BufferLength_, Spec_);
+        return Utils::EstimateBufferDuration(BufferLength_, Spec_);
     }
 }
 
-void AudioPlayer::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
+void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
 {
-    auto* self = (AudioPlayer*)userdata;
-
+    auto* self = (Player*)userdata;
     std::unique_lock lock { self->BufferLock_ };
+
+    // Empty the buffer ( required by SDL docs )
+    SDL_memset(stream, len, 0);
 
     // Skip anything if the buffer is already empty
     if (self->Buffer_.empty())
@@ -138,14 +136,18 @@ void AudioPlayer::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
 
     // Feed audio data into the stream
     size_t remaining = std::min(self->BufferLength_, (size_t)len);
+    uint8_t* dst = stream;
+
     while (remaining)
     {
         auto& front = self->Buffer_.front();
         long chunk = (long)std::min(front.Data.size() - front.Idx, remaining);
 
+        // Event if the channel is muted we need to take
         if (!self->Muted_)
         {
-            SDL_memcpy(stream, &front.Data[front.Idx], chunk);
+            SDL_memcpy(dst, &front.Data[front.Idx], chunk);
+            dst += chunk;
         }
 
         front.Idx += chunk;

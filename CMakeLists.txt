@@ -6,23 +6,30 @@ include_directories(lib)
 set(CMAKE_CXX_STANDARD 23)
 
 add_executable(melound src/main.cpp
-        include/hardware/bell/BellDriver.h
-        include/hardware/bell/BellConfig.h
+        include/hardware/speaker/SpeakerDriver.h
+        include/hardware/speaker/SpeakerConfig.h
         include/hardware/switch/SwitchDriver.h
 
-        include/hardware/audio/Audio.h
-        include/hardware/audio/AudioLoader.h
-        include/hardware/audio/AudioPlayer.h
+        include/hardware/audio/core/Track.h
+        include/hardware/audio/core/TrackLoader.h
+        include/hardware/audio/core/Player.h
+        include/hardware/audio/core/Utils.h
+
+        include/hardware/audio/mixer/Mixer.h
+        include/hardware/audio/mixer/Transition.h
 
         src/hardware/switch/SwitchDriver.cpp
-        src/hardware/audio/Audio.cpp
-        src/hardware/audio/AudioLoader.cpp
-        src/hardware/audio/AudioPlayer.cpp
-        src/hardware/bell/BellDriver.cpp
+
+        src/hardware/audio/core/Track.cpp
+        src/hardware/audio/core/TrackLoader.cpp
+        src/hardware/audio/core/Player.cpp
+        src/hardware/audio/core/Utils.cpp
+
+        src/hardware/speaker/SpeakerDriver.cpp
         include/utils/Mask.h
-        include/hardware/bell/BellSink.h
-        include/hardware/audio/AudioUtils.h
-        src/hardware/audio/AudioUtils.cpp
+        include/hardware/speaker/SpeakerSink.h
+        include/utils/Time.h
+        src/hardware/audio/mixer/Mixer.cpp
 )
 
 # Add SDL2 library

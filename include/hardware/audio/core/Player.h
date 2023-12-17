@@ -1,7 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "Audio.h"
+#include "Track.h"
 
 #include <optional>
 #include <utility>
@@ -10,9 +10,7 @@
 #include <mutex>
 #include <deque>
 
-#include <eventpp/callbacklist.h>
-
-namespace ml
+namespace ml::audio
 {
     /**
      * @brief A simple audio thread-safe player.
@@ -21,7 +19,7 @@ namespace ml
      * Provides mute/unmute methods.
      * Supports queue, so it is fully suitable for VoIP applications.
      */
-    class AudioPlayer
+    class Player
     {
         struct Entry
         {
@@ -41,11 +39,11 @@ namespace ml
         mutable std::mutex BufferLock_;
 
     public:
-        static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<AudioPlayer>;
-        ~AudioPlayer();
+        static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<Player>;
+        ~Player();
 
-        /** Plays the audio track. Fails only if audio device is incompatible with the audio. Doesn't clear the pause state. */
-        auto Enqueue(const Audio& audio) noexcept -> std::future<void>;
+        /** Plays the audio track. Doesn't clear the pause state. */
+        auto Enqueue(const Track& audio) noexcept -> std::future<void>;
 
         /** Empties the queue. Playback will be stopped immediately. Doesn't clear the pause state. */
         void Clear() noexcept;
@@ -71,16 +69,13 @@ namespace ml
         /** Returns the mute state. */
         auto Muted() const noexcept -> bool;
 
-        /** Returns the current size of the queue. */
-        auto QueueSize() const noexcept -> size_t;
-
         /** Determines for how long the player will continue to play. */
         auto DurationLeft() const noexcept -> time_t;
 
     private:
-        AudioPlayer() noexcept = default;
-        AudioPlayer(const AudioPlayer&) noexcept = delete;
-        AudioPlayer(AudioPlayer&&) noexcept = delete;
+        Player() noexcept = default;
+        Player(const Player&) noexcept = delete;
+        Player(Player&&) noexcept = delete;
 
         static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
     };

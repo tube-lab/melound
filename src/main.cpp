@@ -1,25 +1,29 @@
-#include "hardware/audio/AudioLoader.h"
-#include "hardware/audio/AudioPlayer.h"
+#include "hardware/audio/core/TrackLoader.h"
+#include "hardware/audio/core/Player.h"
+#include "hardware/audio/mixer/Mixer.h"
 
 #include <fstream>
 #include <iostream>
 
-// POST {sink-id}/open + mode ( 0 - 2 )
-// POST {sink-id}/close
+// POST {sink-id}/open
+// POST {sink-id}/prolong
+// POST {sink-id}/grab
+// POST {sink-id}/release
 // POST {sink-id}/play + data
 // POST {sink-id}/stop
 
 // GET {sink-id}/buffer-duration
-// GET {sink-id}/opening-time + mode
+// GET {sink-id}/grabbing-time
 // GET {sink-id}/timeout
 
 using namespace ml;
+using namespace audio;
 
 auto FromFile(std::string path)
 {
     std::ifstream ifs { path };
     std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
-    return AudioLoader::FromWav(data);
+    return TrackLoader::FromWav(data);
 }
 
 auto main() -> int
@@ -29,9 +33,12 @@ auto main() -> int
 
     auto track = *FromFile("sound.wav");
 
-    auto player = AudioPlayer::Create(track.Specs());
-    auto f = player->Enqueue(*FromFile("melody.wav"));
-    auto g = player->Enqueue(*FromFile("sound.wav"));
+    auto player = Mixer::Create(2, Transition {}, track.Specs());
+    auto f = player->Enqueue(1, *FromFile("melody.wav"));
+    auto g = player->Enqueue(0, *FromFile("sound.wav"));
+
+    player->Resume(0);
+    player->Resume(1);
 
     f.wait();
     std::cout << "Played melody\n";

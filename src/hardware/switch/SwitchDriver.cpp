@@ -95,9 +95,8 @@ auto SwitchDriver::Path() const noexcept -> std::string_view
 }
 
 SwitchDriver::SwitchDriver(int fd, std::string port) noexcept
+    : PortFd_ { fd }, Port_ { std::move(port) }
 {
-    PortFd_ = fd;
-    Port_ = std::move(port);
     Close(); // enforce the safe state
 }
 

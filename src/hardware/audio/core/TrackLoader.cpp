@@ -1,7 +1,8 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/AudioLoader.h"
+#include "hardware/audio/core/TrackLoader.h"
+using namespace ml::audio;
 
-auto ml::AudioLoader::FromWav(const std::vector<char> &wav) noexcept -> std::optional<Audio>
+auto TrackLoader::FromWav(const std::vector<char> &wav) noexcept -> std::optional<Track>
 {
     // Try to parse the audio
     SDL_AudioSpec wavSpec;
@@ -17,7 +18,7 @@ auto ml::AudioLoader::FromWav(const std::vector<char> &wav) noexcept -> std::opt
     }
 
     // Move the buffer and specs into the audio object
-    Audio audio { { wavBuffer, wavBuffer + wavLength }, wavSpec };
+    Track audio {{wavBuffer, wavBuffer + wavLength }, wavSpec };
 
     delete wavBuffer;
     return audio;
