@@ -25,8 +25,8 @@ namespace ml
      */
     class SwitchDriver
     {
-        const int PortFd_;
-        const std::string Port_;
+        int PortFd_;
+        std::string Port_;
         bool Enabled_;
 
     public:

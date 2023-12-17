@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Transition.h"
+#include "hardware/audio/core/Player.h"
 #include "hardware/audio/core/Track.h"
 
 #include <optional>
@@ -24,28 +25,8 @@ namespace ml::audio
      */
     class Mixer
     {
-        struct Entry
-        {
-            std::vector<uint8_t> Data;
-            std::promise<void> Listener;
-            size_t Idx;
-        };
-
-        struct Channel
-        {
-            std::deque<Entry> Buffer;
-            size_t BufferLength {};
-
-            std::atomic<bool> Paused;
-            std::atomic<bool> Muted;
-
-            mutable std::mutex Lock;
-        };
-
         Transition Transition_ {};
-        SDL_AudioSpec Spec_ {};
-        SDL_AudioDeviceID Out_ {};
-        std::vector<Channel> Channels_ {};
+        std::vector<std::shared_ptr<Player>> Channels_ {};
 
         std::atomic<size_t> Active_ { UINT64_MAX };
         std::atomic<size_t> PreviousActive_ { UINT64_MAX };
@@ -96,13 +77,8 @@ namespace ml::audio
         auto TransitionEffect() const noexcept -> Transition;
 
     private:
-        Mixer() noexcept = default;
+        Mixer(Transition func, const std::vector<std::shared_ptr<Player>>& channels) noexcept;
         Mixer(const Mixer&) noexcept = delete;
         Mixer(Mixer&&) noexcept = delete;
-
-        static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
-
-        void SyncPauseState() noexcept;
-        auto TakeAudioData(uint channel, uint64_t len) noexcept -> std::vector<uint8_t>;
     };
 }

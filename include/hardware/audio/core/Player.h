@@ -39,7 +39,7 @@ namespace ml::audio
         mutable std::mutex BufferLock_;
 
     public:
-        static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<Player>;
+        static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
         ~Player();
 
         /** Plays the audio track. Doesn't clear the pause state. */
@@ -78,5 +78,6 @@ namespace ml::audio
         Player(Player&&) noexcept = delete;
 
         static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
+        void DropFirstEntry() noexcept;
     };
 }

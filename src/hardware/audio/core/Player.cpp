@@ -4,7 +4,7 @@ using namespace ml::audio;
 
 #include <iostream>
 
-auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioDevice) -> std::shared_ptr<Player>
+auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device) -> std::shared_ptr<Player>
 {
     SDL_Init(SDL_INIT_AUDIO);
 
@@ -12,7 +12,7 @@ auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioD
     auto* player = new Player {};
 
     // Select the device ( if given )
-    const char* device = audioDevice ? audioDevice->c_str() : nullptr;
+    const char* name = device ? device->c_str() : nullptr;
 
     // Inject custom callback into the specs
     SDL_AudioSpec modified = spec;
@@ -20,15 +20,12 @@ auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& audioD
     modified.userdata = player;
 
     // Create the output
-    SDL_AudioDeviceID out = SDL_OpenAudioDevice(device, 0, &modified, nullptr, 0);
+    SDL_AudioDeviceID out = SDL_OpenAudioDevice(name, 0, &modified, nullptr, 0);
     if (!out)
     {
         delete player;
         return nullptr;
     }
-
-    // Instantly unmute the audio device
-    SDL_PauseAudioDevice(out, false);
 
     player->Spec_ = spec;
     player->Out_ = out;
@@ -52,6 +49,9 @@ auto Player::Enqueue(const Track& audio) noexcept -> std::future<void>
         Buffer_.emplace_back(audio.Buffer(), std::promise<void> {}, 0);
         BufferLength_ += audio.Buffer().size();
 
+        // Possibly unpause the audio device
+        SDL_PauseAudioDevice(Out_, Paused_);
+
         return Buffer_.back().Listener.get_future();
     }
 }
@@ -65,6 +65,9 @@ void Player::Clear() noexcept
             Buffer_.front().Listener.set_value();
             Buffer_.pop_front();
         }
+
+        // Stop the playback until the new audio will be added
+        SDL_PauseAudioDevice(Out_, true);
     }
 }
 
@@ -74,8 +77,7 @@ void Player::Skip() noexcept
     {
         if (!Buffer_.empty())
         {
-            Buffer_.front().Listener.set_value();
-            Buffer_.pop_front();
+            DropFirstEntry();
         }
     }
 }
@@ -157,11 +159,22 @@ void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
         // If the page ended - invoke the listener
         if (front.Idx == front.Data.size())
         {
-            front.Listener.set_value();
-            self->Buffer_.pop_front();
+            self->DropFirstEntry();
         }
     }
 
     lock.unlock();
     std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_  << "\n"; // TODO: Remove debug
+}
+
+void Player::DropFirstEntry() noexcept
+{
+    Buffer_.front().Listener.set_value();
+    Buffer_.pop_front();
+
+    // Nothing to play, wait for a new audio
+    if (Buffer_.empty())
+    {
+        SDL_PauseAudioDevice(Out_, true);
+    }
 }
