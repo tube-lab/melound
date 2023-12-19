@@ -2,8 +2,6 @@
 #include "hardware/audio/core/Player.h"
 using namespace ml::audio;
 
-#include <iostream>
-
 auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device) -> std::shared_ptr<Player>
 {
     SDL_Init(SDL_INIT_AUDIO);
@@ -159,7 +157,8 @@ void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
 
     lock.unlock();
 
-    //Log.Info(self) << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_
+    //#include <iostream>
+    //std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_
     //                   << " muted=" << self->Muted_ << "\n"; // TODO: Remove debug
 }
 

@@ -73,14 +73,14 @@ SwitchDriver::~SwitchDriver()
 void SwitchDriver::Close() noexcept
 {
     // set dtr line high
-    UpdatePort(Mask<int> {} | TIOCM_DTR);
+    UpdatePort(TIOCM_DTR, 0);
     Enabled_ = true;
 }
 
 void SwitchDriver::Open() noexcept
 {
     // set dtr line low
-    UpdatePort(Mask<int> {} & TIOCM_DTR);
+    UpdatePort(0, TIOCM_DTR);
     Enabled_ = false;
 }
 
@@ -100,13 +100,15 @@ SwitchDriver::SwitchDriver(int fd, std::string port) noexcept
     Close(); // enforce the safe state
 }
 
-void SwitchDriver::UpdatePort(Mask<int> status) noexcept
+void SwitchDriver::UpdatePort(int add, int remove) noexcept
 {
     // Apply the mask to the actual port status
     int st;
     if (ioctl(PortFd_, TIOCMGET, &st) == 0)
     {
-        status(st);
+        st |= add;
+        st &= ~remove;
+
         ioctl(PortFd_, TIOCMSET, &st);
     }
 }

@@ -25,11 +25,9 @@ add_executable(melound src/main.cpp
         src/hardware/audio/core/Utils.cpp
 
         src/hardware/speaker/SpeakerDriver.cpp
-        include/utils/Mask.h
         include/hardware/speaker/SpeakerSink.h
         include/utils/Time.h
         src/hardware/audio/mixer/ChannelsMixer.cpp
-        include/utils/Log.h
 )
 
 # Add SDL2 library

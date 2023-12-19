@@ -3,7 +3,6 @@
 
 #include "hardware/audio/core/Player.h"
 #include "hardware/audio/core/Track.h"
-#include "utils/Log.h"
 
 #include <vector>
 #include <mutex>

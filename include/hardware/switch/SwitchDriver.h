@@ -1,8 +1,6 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "utils/Mask.h"
-
 #include <memory>
 #include <optional>
 
@@ -54,6 +52,6 @@ namespace ml
         SwitchDriver(const SwitchDriver&) noexcept = delete;
         SwitchDriver(SwitchDriver&&) noexcept = delete;
 
-        void UpdatePort(Mask<int> status) noexcept;
+        void UpdatePort(int add, int remove) noexcept;
     };
 }
