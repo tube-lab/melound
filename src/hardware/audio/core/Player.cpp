@@ -51,7 +51,7 @@ auto Player::Enqueue(const Track& audio) noexcept -> std::future<void>
         BufferLength_ += audio.Buffer().size();
 
         // Possibly unpause the audio device
-        SDL_PauseAudioDevice(Out_, Paused_);
+        ApplyDevicePause();
 
         return Buffer_.back().Listener.get_future();
     }
@@ -67,8 +67,7 @@ void Player::Clear() noexcept
             Buffer_.pop_front();
         }
 
-        // Stop the playback until the new audio will be added
-        SDL_PauseAudioDevice(Out_, true);
+        ApplyDevicePause();
     }
 }
 
@@ -83,32 +82,16 @@ void Player::Skip() noexcept
     }
 }
 
-void Player::ApplyEffect(const std::shared_ptr<Effect>& effect) noexcept
-{
-    std::lock_guard _ { EffectLock_ };
-    {
-        Effects_[effect] = 0;
-    }
-}
-
-void Player::RemoveEffect(const std::shared_ptr<Effect>& effect) noexcept
-{
-    std::lock_guard _ { EffectLock_ };
-    {
-        Effects_.erase(effect);
-    }
-}
-
 void Player::Pause() noexcept
 {
     Paused_ = true;
-    SDL_PauseAudioDevice(Out_, true);
+    ApplyDevicePause();
 }
 
 void Player::Resume() noexcept
 {
     Paused_ = false;
-    SDL_PauseAudioDevice(Out_, false);
+    ApplyDevicePause();
 }
 
 void Player::Mute() noexcept
@@ -145,13 +128,7 @@ void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
     std::unique_lock lock { self->BufferLock_ };
 
     // Empty the buffer ( required by SDL docs )
-    SDL_memset(stream, len, 0);
-
-    // Skip anything if the buffer is already empty
-    if (self->Buffer_.empty())
-    {
-        return;
-    }
+    SDL_memset(stream, 0, len);
 
     // Feed audio data into the stream
     size_t remaining = std::min(self->BufferLength_, (size_t)len);
@@ -182,33 +159,8 @@ void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
 
     lock.unlock();
 
-    // Process the effects
-    std::unique_lock effects_lock { self->EffectLock_ };
-
-    const auto duration = Utils::EstimateBufferDuration(len, self->Spec_);
-    for (auto& [effect, passed] : self->Effects_)
-    {
-        // Trim the duration to force the effect to play close to Duration() milliseconds
-        const auto trimmedDuration = std::min(effect->Duration() - passed, duration);
-
-        // Create the buffer ( always round up in case when trimmed )
-        const auto trimmedLength = (size_t)std::ceil(((float)trimmedDuration / (float)duration) * (float)len);
-        std::span<uint8_t> view { stream, trimmedLength };
-
-        // Actually apply the effect
-        effect->Apply(view, passed, trimmedDuration);
-        passed += trimmedDuration;
-    }
-
-    // Remove all the expired effects
-    std::erase_if(self->Effects_, [](const auto& t)
-    {
-        return t.first->Duration() == t.second;
-    });
-
-    effects_lock.unlock();
-
-    std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_ << ' ' << self->Effects_.size() << "\n"; // TODO: Remove debug
+    //Log.Info(self) << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_
+    //                   << " muted=" << self->Muted_ << "\n"; // TODO: Remove debug
 }
 
 void Player::DropFirstEntry() noexcept
@@ -216,9 +168,18 @@ void Player::DropFirstEntry() noexcept
     Buffer_.front().Listener.set_value();
     Buffer_.pop_front();
 
-    // Nothing to play, wait for a new audio
+    ApplyDevicePause();
+}
+
+void Player::ApplyDevicePause() noexcept
+{
+    // Nothing to play, wait for a new audio to be enqueued
     if (Buffer_.empty())
     {
         SDL_PauseAudioDevice(Out_, true);
+        return;
     }
+
+    // Use the internal state
+    SDL_PauseAudioDevice(Out_, Paused_);
 }

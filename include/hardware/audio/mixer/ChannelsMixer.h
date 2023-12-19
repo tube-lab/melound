@@ -1,43 +1,32 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "Transition.h"
 #include "hardware/audio/core/Player.h"
 #include "hardware/audio/core/Track.h"
+#include "utils/Log.h"
 
-#include <optional>
-#include <utility>
-#include <string>
-#include <future>
+#include <vector>
 #include <mutex>
-#include <deque>
+#include <ranges>
 
 namespace ml::audio
 {
-    // TODO: Support for the blending
     /**
      * @brief The simple mixer
-     * - Allows to mix multiple channels into the single one.
+     * - Allows to overlay multiple channels.
      * - Each particular channel has the same capabilities as a Player instance.
-     * - Mixing system based on priorities. When the channel with id=k is un-paused all channels which id's < k are muted,
-     *   this works even of the channel with id=k is muted.
-     * - Supports customizable channels transition blending ( based on Bezier curves )
+     * - Overlay system based on priorities. When the channel with id=k is unmuted all channels which id's < k are muted.
+     * - Do not support any kind of the channel blending.
      */
-    class Mixer
+    class ChannelsMixer
     {
-        Transition Transition_ {};
         std::vector<std::shared_ptr<Player>> Channels_ {};
 
-        std::vector<std::atomic<bool>> ChannelStates_ {};
-
-        std::atomic<size_t> Active_ { UINT64_MAX };
-        std::atomic<size_t> PreviousActive_ { UINT64_MAX };
+        std::vector<bool> MutedChannels_ {};
+        std::mutex MutedChannelsLock_ {};
 
     public:
-        static auto Create(uint channels, Transition func, SDL_AudioSpec spec,
-                           const std::optional<std::string>& audioDevice = std::nullopt)
-                           -> std::shared_ptr<Mixer>;
-        ~Mixer();
+        static auto Create(uint channels, SDL_AudioSpec spec, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<ChannelsMixer>;
 
         /** Appends the audio track to the particular channel. Doesn't clear the pause state. */
         auto Enqueue(uint channel, const Track& audio) noexcept -> std::future<void>;
@@ -48,13 +37,13 @@ namespace ml::audio
         /** Drops the first track in the channel' queue and immediately moves to the next one. */
         void Skip(uint channel) noexcept;
 
-        /** Temporary pauses a playback. */
-        void Pause(uint channel) noexcept;
+        /** Temporary pauses all channels playback. */
+        void Pause() noexcept;
 
         /** Resumes a previously paused playback. */
-        void Resume(uint channel) noexcept;
+        void Resume() noexcept;
 
-        /** Mutes the channel.*/
+        /** Mutes the channel. */
         void Mute(uint channel) noexcept;
 
         /** Unmutes the channel. */
@@ -75,12 +64,11 @@ namespace ml::audio
         /** Returns the number of mixer' channels. */
         auto Channels() const noexcept -> size_t;
 
-        /** Returns the mixer transition ease function. */
-        auto TransitionEffect() const noexcept -> Transition;
-
     private:
-        Mixer(Transition func, const std::vector<std::shared_ptr<Player>>& channels) noexcept;
-        Mixer(const Mixer&) noexcept = delete;
-        Mixer(Mixer&&) noexcept = delete;
+        ChannelsMixer(const std::vector<std::shared_ptr<Player>>& channels) noexcept;
+        ChannelsMixer(const ChannelsMixer&) noexcept = delete;
+        ChannelsMixer(ChannelsMixer&&) noexcept = delete;
+
+        void UpdateChannel(size_t channel, bool muted) noexcept;
     };
 }

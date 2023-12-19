@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Track.h"
-#include "Effect.h"
+#include "utils/Log.h" // TODO: Debug
 
 #include <optional>
 #include <utility>
@@ -40,9 +40,6 @@ namespace ml::audio
         size_t BufferLength_ {};
         mutable std::mutex BufferLock_;
 
-        std::unordered_map<std::shared_ptr<Effect>, time_t> Effects_;
-        mutable std::mutex EffectLock_;
-
     public:
         static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
         ~Player();
@@ -55,12 +52,6 @@ namespace ml::audio
 
         /** Drops the first track in the queue and immediately moves to the next one. */
         void Skip() noexcept;
-
-        /** Adds the effect to the player. */
-        void ApplyEffect(const std::shared_ptr<Effect>& effect) noexcept;
-
-        /** Manually removes the effect from the player. */
-        void RemoveEffect(const std::shared_ptr<Effect>& effect) noexcept;
 
         /** Temporary pauses a playback. */
         void Pause() noexcept;
@@ -90,5 +81,6 @@ namespace ml::audio
 
         static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
         void DropFirstEntry() noexcept;
+        void ApplyDevicePause() noexcept;
     };
 }
