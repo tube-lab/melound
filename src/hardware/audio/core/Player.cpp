@@ -29,6 +29,7 @@ auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device
 
     player->Spec_ = spec;
     player->Out_ = out;
+    player->Paused_ = true;
 
     return std::shared_ptr<Player> {
         player
@@ -79,6 +80,22 @@ void Player::Skip() noexcept
         {
             DropFirstEntry();
         }
+    }
+}
+
+void Player::ApplyEffect(const std::shared_ptr<Effect>& effect) noexcept
+{
+    std::lock_guard _ { EffectLock_ };
+    {
+        Effects_[effect] = 0;
+    }
+}
+
+void Player::RemoveEffect(const std::shared_ptr<Effect>& effect) noexcept
+{
+    std::lock_guard _ { EffectLock_ };
+    {
+        Effects_.erase(effect);
     }
 }
 
@@ -164,7 +181,34 @@ void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
     }
 
     lock.unlock();
-    std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_  << "\n"; // TODO: Remove debug
+
+    // Process the effects
+    std::unique_lock effects_lock { self->EffectLock_ };
+
+    const auto duration = Utils::EstimateBufferDuration(len, self->Spec_);
+    for (auto& [effect, passed] : self->Effects_)
+    {
+        // Trim the duration to force the effect to play close to Duration() milliseconds
+        const auto trimmedDuration = std::min(effect->Duration() - passed, duration);
+
+        // Create the buffer ( always round up in case when trimmed )
+        const auto trimmedLength = (size_t)std::ceil(((float)trimmedDuration / (float)duration) * (float)len);
+        std::span<uint8_t> view { stream, trimmedLength };
+
+        // Actually apply the effect
+        effect->Apply(view, passed, trimmedDuration);
+        passed += trimmedDuration;
+    }
+
+    // Remove all the expired effects
+    std::erase_if(self->Effects_, [](const auto& t)
+    {
+        return t.first->Duration() == t.second;
+    });
+
+    effects_lock.unlock();
+
+    std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_ << ' ' << self->Effects_.size() << "\n"; // TODO: Remove debug
 }
 
 void Player::DropFirstEntry() noexcept

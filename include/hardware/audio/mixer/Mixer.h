@@ -28,6 +28,8 @@ namespace ml::audio
         Transition Transition_ {};
         std::vector<std::shared_ptr<Player>> Channels_ {};
 
+        std::vector<std::atomic<bool>> ChannelStates_ {};
+
         std::atomic<size_t> Active_ { UINT64_MAX };
         std::atomic<size_t> PreviousActive_ { UINT64_MAX };
 

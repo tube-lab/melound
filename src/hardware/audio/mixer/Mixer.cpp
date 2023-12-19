@@ -44,12 +44,16 @@ void Mixer::Skip(uint channel) noexcept
 void Mixer::Pause(uint channel) noexcept
 {
     Channels_[channel]->Pause();
-
 }
 
 void Mixer::Resume(uint channel) noexcept
 {
     Channels_[channel]->Resume();
+
+    for (int64_t i = channel - 1; i >= 0; ++i)
+    {
+        Channels_[i]->Pause();
+    }
 }
 
 void Mixer::Mute(uint channel) noexcept
@@ -101,5 +105,5 @@ auto Mixer::TransitionEffect() const noexcept -> Transition
 Mixer::Mixer(Transition func, const std::vector<std::shared_ptr<Player>>& channels) noexcept
     : Transition_(func), Channels_(channels)
 {
-
+    //ChannelStates_.push_back(false);
 }
