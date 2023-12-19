@@ -1,7 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "SpeakerConfig.h"
+#include "Config.h"
 #include "hardware/audio/core/Player.h"
 #include "hardware/switch/SwitchDriver.h"
 #include "utils/Time.h"
@@ -13,16 +13,16 @@
 #include <thread>
 #include <map>
 
-namespace ml
+namespace ml::amplifier
 {
 
     /**
-     * A driver for a speaker driver.
-     * Exception safe, but not thread safe.
+     * A driver for a lamp amplifier.
+     * Exception and thread safe.
      */
-    class SpeakerDriver
+    class Driver
     {
-        struct SinkInfo : SpeakerSink
+        struct SinkInfo : Sink
         {
             std::shared_ptr<audio::Player> Player;
         };
@@ -38,7 +38,7 @@ namespace ml
         static constexpr time_t ProlongationDuration = 1000;
 
         // Initial configuration
-        const SpeakerConfig Config_;
+        const Config Config_;
         const std::shared_ptr<SwitchDriver> Switch_;
         const std::unordered_map<std::string, SinkInfo> Sinks_;
 
@@ -56,8 +56,8 @@ namespace ml
         std::jthread Controller_;
 
     public:
-        static auto Create(const SpeakerConfig& config) noexcept -> std::shared_ptr<SpeakerDriver>;
-        ~SpeakerDriver();
+        static auto Create(const Config& config) noexcept -> std::shared_ptr<Driver>;
+        ~Driver();
 
         /**
          * @brief Opens the speaker sink, blocks the playback of other sinks with lower priority.
@@ -94,13 +94,12 @@ namespace ml
         auto GrabbingTime(bool urgent) -> std::optional<time_t>;
 
     private:
-        SpeakerDriver(const SpeakerConfig& config) noexcept;
-        SpeakerDriver(const SpeakerDriver&) noexcept = delete;
-        SpeakerDriver(SpeakerDriver&&) noexcept = delete;
+        Driver(const Config& config) noexcept;
+        Driver(const Driver&) noexcept = delete;
+        Driver(Driver&&) noexcept = delete;
 
         void ControlLoop(const std::stop_token& token) noexcept;
         void CloseExpiredSinks(time_t time) noexcept;
-        void ChoosePlayerByPriority() noexcept;
 
         auto FindSinkInfo(const std::string& name) -> const SinkInfo&;
     };

@@ -1,16 +1,14 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "SpeakerSink.h"
-
 #include <string>
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
 
-namespace ml
+namespace ml::amplifier
 {
-    struct SpeakerConfig
+    struct Config
     {
         /** Time that the amplifier requires to warm-up. */
         time_t WarmingDuration {};
@@ -21,10 +19,10 @@ namespace ml
         /** The port to which the power-switch is connected. */
         std::string PowerControlPort {};
 
-        /** The name of the audio output. */
+        /** The name of the audio output connect to the amplifier. */
         std::string AudioDevice {};
 
-        /** The list of the speaker sinks. */
-        std::unordered_map<std::string, SpeakerSink> Sinks {};
+        /** The number of the amplifier channels. */
+        uint64_t Channels {};
     };
 }

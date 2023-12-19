@@ -10,7 +10,7 @@ auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<S
         return nullptr;
     }
 
-    // Do the init ( on fail operations will be undone )
+    // Do the init ( on fail all operations will be undone )
     auto r = [&]()
     {
         // Lock the port, so no other process can access the switch
@@ -102,6 +102,8 @@ SwitchDriver::SwitchDriver(int fd, std::string port) noexcept
 
 void SwitchDriver::UpdatePort(int add, int remove) noexcept
 {
+    std::lock_guard _ { UpdateLock_ };
+
     // Apply the mask to the actual port status
     int st;
     if (ioctl(PortFd_, TIOCMGET, &st) == 0)

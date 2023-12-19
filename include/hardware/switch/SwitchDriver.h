@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <optional>
+#include <atomic>
 
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -16,17 +17,19 @@
 
 namespace ml
 {
+    // TODO: Move into separate namespace
     /**
      * @brief A high level driver for RS232 based 5V switch.
      * The switch utilizes DTR line of RS232 port.
-     * Fully exception-safe, but isn't thread-safe in the sake of simplicity.
+     * Fully exception and thread safe.
      */
     class SwitchDriver
     {
         int PortFd_;
         std::string Port_;
 
-        bool Enabled_;
+        std::atomic<bool> Enabled_;
+        std::mutex UpdateLock_;
 
     public:
         /** Takes ownership over the physical switch. Enforces closed state on creation. */

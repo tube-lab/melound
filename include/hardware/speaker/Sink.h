@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <optional>
 
-namespace ml
+namespace ml::speaker
 {
-    struct SpeakerSink
+    struct Sink
     {
         uint64_t Priority;
     };

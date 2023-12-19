@@ -49,7 +49,7 @@ auto Player::Enqueue(const Track& audio) noexcept -> std::future<void>
         BufferLength_ += audio.Buffer().size();
 
         // Possibly unpause the audio device
-        ApplyDevicePause();
+        ReviseDevicePause();
 
         return Buffer_.back().Listener.get_future();
     }
@@ -65,7 +65,7 @@ void Player::Clear() noexcept
             Buffer_.pop_front();
         }
 
-        ApplyDevicePause();
+        ReviseDevicePause();
     }
 }
 
@@ -83,13 +83,13 @@ void Player::Skip() noexcept
 void Player::Pause() noexcept
 {
     Paused_ = true;
-    ApplyDevicePause();
+    ReviseDevicePause();
 }
 
 void Player::Resume() noexcept
 {
     Paused_ = false;
-    ApplyDevicePause();
+    ReviseDevicePause();
 }
 
 void Player::Mute() noexcept
@@ -167,10 +167,10 @@ void Player::DropFirstEntry() noexcept
     Buffer_.front().Listener.set_value();
     Buffer_.pop_front();
 
-    ApplyDevicePause();
+    ReviseDevicePause();
 }
 
-void Player::ApplyDevicePause() noexcept
+void Player::ReviseDevicePause() noexcept
 {
     // Nothing to play, wait for a new audio to be enqueued
     if (Buffer_.empty())

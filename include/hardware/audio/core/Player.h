@@ -80,6 +80,6 @@ namespace ml::audio
 
         static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
         void DropFirstEntry() noexcept;
-        void ApplyDevicePause() noexcept;
+        void ReviseDevicePause() noexcept;
     };
 }

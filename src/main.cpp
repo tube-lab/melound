@@ -1,6 +1,6 @@
 #include "hardware/audio/core/TrackLoader.h"
 #include "hardware/audio/core/Player.h"
-#include "hardware/audio/mixer/ChannelsMixer.h"
+#include "hardware/audio/ChannelsMixer.h"
 
 #include <fstream>
 #include <iostream>

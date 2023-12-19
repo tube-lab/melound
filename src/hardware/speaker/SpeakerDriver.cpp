@@ -1,8 +1,8 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/speaker/SpeakerDriver.h"
+#include "hardware/speaker/Driver.h"
 using namespace ml;
 
-auto SpeakerDriver::Open(const std::string& sink) noexcept -> bool
+/*auto SpeakerDriver::Open(const std::string& sink) noexcept -> bool
 {
     std::lock_guard _ {SinksStatsLock_ };
     {
@@ -88,4 +88,4 @@ void SpeakerDriver::ChoosePlayerByPriority() noexcept
 auto SpeakerDriver::FindSinkInfo(const std::string& name) -> const SinkInfo&
 {
     return Sinks_.find(name)->second;
-}
+}*/

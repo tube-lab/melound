@@ -6,16 +6,18 @@ include_directories(lib)
 set(CMAKE_CXX_STANDARD 23)
 
 add_executable(melound src/main.cpp
-        include/hardware/speaker/SpeakerDriver.h
-        include/hardware/speaker/SpeakerConfig.h
+        include/hardware/speaker/Driver.h
+        include/hardware/speaker/Config.h
         include/hardware/switch/SwitchDriver.h
 
         include/hardware/audio/core/Track.h
         include/hardware/audio/core/TrackLoader.h
         include/hardware/audio/core/Player.h
         include/hardware/audio/core/Utils.h
+        include/hardware/audio/ChannelsMixer.h
 
-        include/hardware/audio/mixer/ChannelsMixer.h
+        include/hardware/amplifier/Config.h
+        include/hardware/amplifier/Driver.h
 
         src/hardware/switch/SwitchDriver.cpp
 
@@ -25,9 +27,9 @@ add_executable(melound src/main.cpp
         src/hardware/audio/core/Utils.cpp
 
         src/hardware/speaker/SpeakerDriver.cpp
-        include/hardware/speaker/SpeakerSink.h
+        include/hardware/speaker/Sink.h
         include/utils/Time.h
-        src/hardware/audio/mixer/ChannelsMixer.cpp
+        src/hardware/audio/ChannelsMixer.cpp
 )
 
 # Add SDL2 library
