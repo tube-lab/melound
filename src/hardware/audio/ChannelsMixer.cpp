@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/mixer/ChannelsMixer.h"
+#include "hardware/audio/ChannelsMixer.h"
 using namespace ml::audio;
 
 #include <iostream> // TODO: Debug
@@ -19,21 +19,6 @@ auto ChannelsMixer::Create(uint channels, SDL_AudioSpec spec, const std::optiona
     };
 }
 
-auto ChannelsMixer::Enqueue(uint channel, const Track& audio) noexcept -> std::future<void>
-{
-    return Channels_[channel]->Enqueue(audio);
-}
-
-void ChannelsMixer::Clear(uint channel) noexcept
-{
-    Channels_[channel]->Clear();
-}
-
-void ChannelsMixer::Skip(uint channel) noexcept
-{
-    Channels_[channel]->Skip();
-}
-
 void ChannelsMixer::Pause() noexcept
 {
     for (auto& channel : Channels_)
@@ -50,14 +35,55 @@ void ChannelsMixer::Resume() noexcept
     }
 }
 
+auto ChannelsMixer::Enqueue(uint channel, const Track& audio) noexcept -> std::future<void>
+{
+    return Channels_[channel]->Enqueue(audio);
+}
+
+void ChannelsMixer::Clear(uint channel) noexcept
+{
+    Channels_[channel]->Clear();
+}
+
+void ChannelsMixer::Skip(uint channel) noexcept
+{
+    Channels_[channel]->Skip();
+}
+
+void ChannelsMixer::Enable(uint channel) noexcept
+{
+    UpdateChannel(channel, true, std::nullopt);
+}
+
+void ChannelsMixer::Disable(uint channel) noexcept
+{
+    UpdateChannel(channel, false, std::nullopt);
+}
+
+void ChannelsMixer::Pause(uint channel) noexcept
+{
+    Channels_[channel]->Pause();
+}
+
+void ChannelsMixer::Resume(uint channel) noexcept
+{
+    Channels_[channel]->Resume();
+}
+
 void ChannelsMixer::Mute(uint channel) noexcept
 {
-    UpdateChannel(channel, true);
+    UpdateChannel(channel, std::nullopt, true);
 }
 
 void ChannelsMixer::Unmute(uint channel) noexcept
 {
-    UpdateChannel(channel, false);
+    UpdateChannel(channel, std::nullopt, false);
+}
+
+auto ChannelsMixer::Enabled(uint channel) const noexcept -> bool
+{
+    std::lock_guard _ { ChannelsStatesLock_ };
+    return EnabledChannels_[channel];
 }
 
 auto ChannelsMixer::Paused(uint channel) const noexcept -> bool
@@ -94,21 +120,36 @@ auto ChannelsMixer::Channels() const noexcept -> size_t
 ChannelsMixer::ChannelsMixer(const std::vector<std::shared_ptr<Player>>& channels) noexcept
     : Channels_(channels)
 {
-    MutedChannels_.resize(channels.size(), true);
+    EnabledChannels_.resize(channels.size(), false);
+    MutedChannels_.resize(channels.size(), false);
+
+    SelectChannel(); // reset everything to the initial state
 }
 
-void ChannelsMixer::UpdateChannel(size_t channel, bool muted) noexcept
+void ChannelsMixer::UpdateChannel(size_t channel, std::optional<bool> enabled, std::optional<bool> muted) noexcept
 {
-    std::lock_guard _ {MutedChannelsLock_ };
-    MutedChannels_[channel] = muted;
+    std::lock_guard _ {ChannelsStatesLock_ };
+    if (enabled) EnabledChannels_[channel] = *enabled;
+    if (muted) MutedChannels_[channel] = *muted;
 
-    // Mute all the channels except the first unmuted one
+    SelectChannel();
+}
+
+void ChannelsMixer::SelectChannel() noexcept
+{
+    std::lock_guard _ {ChannelsStatesLock_ };
+
+    // Mute all the channels except the first enabled one
     bool found = false;
     for (size_t i : std::views::iota(0ull, Channels_.size()) | std::views::reverse)
     {
-        if (!MutedChannels_[i] && !found)
+        if (EnabledChannels_[i] && !found)
         {
-            Channels_[i]->Unmute();
+            if (!MutedChannels_[i])
+            {
+                Channels_[i]->Unmute();
+            }
+
             found = true;
         }
         else

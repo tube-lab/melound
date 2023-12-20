@@ -37,17 +37,17 @@ auto main() -> int
     auto player = ChannelsMixer::Create(2, track.Specs());
 
     auto g = player->Enqueue(0, *FromFile("sound.wav"));
-    player->Unmute(0);
+    player->Enable(0);
 
     for (uint i = 0; i < 3; ++i)
     {
-        player->Unmute(1);
+        player->Enable(1);
         auto f = player->Enqueue(1, *FromFile("melody.wav"));
         f.wait();
 
         std::cout << "Played melody #" << i << "\n";
 
-        player->Mute(1);
+        player->Disable(1);
         std::this_thread::sleep_for(20000ms);
     }
 
