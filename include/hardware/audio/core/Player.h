@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Track.h"
+#include "Utils.h"
 
 #include <optional>
 #include <utility>
@@ -15,10 +16,12 @@ namespace ml::audio
 {
     /**
      * @brief A simple audio thread-safe player.
-     * Built on top of SDL audio subsystem.
-     * Provides pause/resume methods.
-     * Provides mute/unmute methods.
-     * Supports queue, so it is fully suitable for VoIP applications.
+     * - Built on top of SDL audio subsystem.
+     * - Provides pause/resume methods.
+     * - Provides mute/unmute methods.
+     * - Supports queue, so it is fully suitable for VoIP applications.
+     * Note, that the player is paused by default.
+     * Fully exception and thread safe.
      */
     class Player
     {
@@ -40,11 +43,11 @@ namespace ml::audio
         mutable std::mutex BufferLock_;
 
     public:
-        static auto Create(SDL_AudioSpec spec, const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
+        static auto Create(const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
         ~Player();
 
         /** Plays the audio track. Doesn't clear the pause state. */
-        auto Enqueue(const Track& audio) noexcept -> std::future<void>;
+        auto Enqueue(const Track& audio) noexcept -> std::optional<std::future<void>>;
 
         /** Empties the queue. Playback will be stopped immediately. Doesn't clear the pause state. */
         void Clear() noexcept;
@@ -78,7 +81,7 @@ namespace ml::audio
         Player(const Player&) noexcept = delete;
         Player(Player&&) noexcept = delete;
 
-        static void AudioSupplier(void* userdata, Uint8* stream, int len) noexcept;
+        static void AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept;
         void DropFirstEntry() noexcept;
         void ReviseDevicePause() noexcept;
     };

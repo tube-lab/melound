@@ -4,13 +4,18 @@ using namespace ml::audio;
 
 #include <iostream> // TODO: Debug
 
-auto ChannelsMixer::Create(uint channels, SDL_AudioSpec spec, const std::optional<std::string> &audioDevice)
+auto ChannelsMixer::Create(uint channels, const std::optional<std::string> &audioDevice)
     -> std::shared_ptr<ChannelsMixer>
 {
     auto players = std::vector<std::shared_ptr<Player>>(channels);
     for (auto& player : players)
     {
-        player = Player::Create(spec, audioDevice);
+        player = Player::Create(audioDevice);
+        if (!player)
+        {
+            return nullptr;
+        }
+
         player->Resume();
     }
     
@@ -35,7 +40,7 @@ void ChannelsMixer::Resume() noexcept
     }
 }
 
-auto ChannelsMixer::Enqueue(uint channel, const Track& audio) noexcept -> std::future<void>
+auto ChannelsMixer::Enqueue(uint channel, const Track& audio) noexcept -> std::optional<std::future<void>>
 {
     return Channels_[channel]->Enqueue(audio);
 }

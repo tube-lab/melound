@@ -16,7 +16,9 @@ namespace ml::audio
      * - Each particular channel has the same capabilities as a Player instance.
      * - Overlay system based on priorities. When the channel with id=k is enabled all channels which id's < k are muted.
      *   This works even if channel with id=k is muted, so always pay attention to this fact.
+     *   Note that even when the channel is disabled it continues to play.
      * - Do not support any kind of the channel blending.
+     * Note, that each channel is muted by default. This allows you to upload all the necessary audio into it.
      */
     class ChannelsMixer
     {
@@ -27,7 +29,7 @@ namespace ml::audio
         mutable std::recursive_mutex ChannelsStatesLock_ {};
 
     public:
-        static auto Create(uint channels, SDL_AudioSpec spec, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<ChannelsMixer>;
+        static auto Create(uint channels, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<ChannelsMixer>;
 
         /** Temporary pauses the playback in all channels. */
         void Pause() noexcept;
@@ -36,9 +38,9 @@ namespace ml::audio
         void Resume() noexcept;
 
         /** Appends the audio track to the particular channel. Doesn't clear the pause state. */
-        auto Enqueue(uint channel, const Track& audio) noexcept -> std::future<void>;
+        auto Enqueue(uint channel, const Track& audio) noexcept -> std::optional<std::future<void>>;
 
-        /** Empties the channel. Channel' playback will be stopped immediately. Doesn't pauses the channel. */
+        /** Empties the channel. Channel' playback will be stopped immediately. Doesn't pause the channel. */
         void Clear(uint channel) noexcept;
 
         /** Drops the first track in the channel' queue and immediately moves to the next one. */
@@ -50,10 +52,10 @@ namespace ml::audio
         /** Disables the channel. */
         void Disable(uint channel) noexcept;
 
-        /** Temporary pauses the playback in channel, but do not disables it. */
+        /** Temporary pauses the playback in channel, however doesn't disable it. */
         void Pause(uint channel) noexcept;
 
-        /** Resumes a previously paused playback in the channel, but do not enables it. */
+        /** Resumes a previously paused playback in the channel, but doesn't enable it. */
         void Resume(uint channel) noexcept;
 
         /** Mutes the channel. */
@@ -71,7 +73,7 @@ namespace ml::audio
         /** Returns the mute state of the channel. */
         auto Muted(uint channel) const noexcept -> bool;
 
-        /** Determines for how long the channel player will continue to play. */
+        /** Determines for how long the channel will continue to play. */
         auto DurationLeft(uint channel) const noexcept -> time_t;
 
         /** Determines the duration of the longest channel. */

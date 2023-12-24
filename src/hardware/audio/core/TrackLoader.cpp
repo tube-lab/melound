@@ -7,7 +7,7 @@ auto TrackLoader::FromWav(const std::vector<char> &wav) noexcept -> std::optiona
     // Try to parse the audio
     SDL_AudioSpec wavSpec;
     Uint32 wavLength;
-    Uint8* wavBuffer;
+    uint8_t* wavBuffer;
 
     auto* rw = SDL_RWFromConstMem(&wav[0], wav.size());
     auto* r = SDL_LoadWAV_RW(rw, 1, &wavSpec, &wavBuffer, &wavLength);

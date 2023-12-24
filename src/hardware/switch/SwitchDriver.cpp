@@ -7,7 +7,8 @@ auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<S
     int fd = open (port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0)
     {
-        return nullptr;
+        // TODO: turned off for debugging purposes
+        //return nullptr;
     }
 
     // Do the init ( on fail all operations will be undone )
@@ -51,9 +52,10 @@ auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<S
 
     if (!r)
     {
-        flock(fd, LOCK_UN);
-        close(fd);
-        return nullptr;
+        // TODO: turned off for debugging purposes
+        //flock(fd, LOCK_UN);
+        //close(fd);
+        //return nullptr;
     }
 
     // Return the created driver

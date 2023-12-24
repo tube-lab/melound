@@ -20,7 +20,7 @@ namespace ml::amplifier
         std::string PowerControlPort {};
 
         /** The name of the audio output connect to the amplifier. */
-        std::string AudioDevice {};
+        std::optional<std::string> AudioDevice {};
 
         /** The number of the amplifier channels. */
         uint64_t Channels {};

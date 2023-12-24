@@ -1,6 +1,5 @@
+#include "hardware/amplifier/Driver.h"
 #include "hardware/audio/core/TrackLoader.h"
-#include "hardware/audio/core/Player.h"
-#include "hardware/audio/ChannelsMixer.h"
 
 #include <fstream>
 #include <iostream>
@@ -18,9 +17,10 @@
 
 using namespace ml;
 using namespace audio;
+using namespace amplifier;
 using namespace std::chrono;
 
-auto FromFile(std::string path)
+auto FromFile(const std::string& path)
 {
     std::ifstream ifs { path };
     std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
@@ -29,30 +29,33 @@ auto FromFile(std::string path)
 
 auto main() -> int
 {
-    std::ifstream ifs { "./melody.wav" };
-    std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
+    auto driver = Driver::Create(Config {
+        .WarmingDuration = 5000,
+        .CoolingDuration = 1000,
+        .PowerControlPort = "/usb/",
+        .AudioDevice = std::nullopt,
+        .Channels = 2,
+    });
 
-    auto track = *FromFile("sound.wav");
+    std::cout << "Start\n";
 
-    auto player = ChannelsMixer::Create(2, track.Specs());
-
-    auto g = player->Enqueue(0, *FromFile("sound.wav"));
-    player->Enable(0);
-
-    for (uint i = 0; i < 3; ++i)
+    for (int i = 0; i < driver->Channels(); ++i)
     {
-        player->Enable(1);
-        auto f = player->Enqueue(1, *FromFile("melody.wav"));
-        f.wait();
-
-        std::cout << "Played melody #" << i << "\n";
-
-        player->Disable(1);
-        std::this_thread::sleep_for(20000ms);
+        auto p = driver->Activate(i, false);
+        p.wait();
+        std::cout << "Channel " << i << " has been enabled: " << p.get() << '\n';
     }
 
-    g.wait();
-    std::cout << "Played sound\n";
+    auto op = driver->Enqueue(1, *FromFile("./sound.wav"));
+    if (!op)
+    {
+        std::cerr << "Failed to enqueue\n";
+        return 1;
+    }
 
+    driver->Resume(1);
+    op->wait();
+
+    std::cout << "Played music\n";
     return 0;
 }

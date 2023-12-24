@@ -67,7 +67,7 @@ void SpeakerDriver::ChoosePlayerByPriority() noexcept
     std::lock_guard _ { SinksStatsLock_ };
     {
         // Find the opened player with the highest priority
-        std::pair<std::string, uint64_t> best;
+        std::pair<std::string, Uint64> best;
         for (const auto& [name, stats] : SinksStats_)
         {
             if (!stats.Opened) continue;

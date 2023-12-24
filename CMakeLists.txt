@@ -30,6 +30,7 @@ add_executable(melound src/main.cpp
         include/hardware/speaker/Sink.h
         include/utils/Time.h
         src/hardware/audio/ChannelsMixer.cpp
+        src/hardware/amplifier/Driver.cpp
 )
 
 # Add SDL2 library

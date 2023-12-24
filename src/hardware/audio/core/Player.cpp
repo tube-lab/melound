@@ -2,7 +2,7 @@
 #include "hardware/audio/core/Player.h"
 using namespace ml::audio;
 
-auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device) -> std::shared_ptr<Player>
+auto Player::Create(const std::optional<std::string>& device) -> std::shared_ptr<Player>
 {
     SDL_Init(SDL_INIT_AUDIO);
 
@@ -12,13 +12,16 @@ auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device
     // Select the device ( if given )
     const char* name = device ? device->c_str() : nullptr;
 
-    // Inject custom callback into the specs
-    SDL_AudioSpec modified = spec;
-    modified.callback = &Player::AudioSupplier;
-    modified.userdata = player;
+    // Make default specs
+    SDL_AudioSpec spec = {};
+    spec.freq = 44100;
+    spec.samples = 4096;
+    spec.callback = &Player::AudioSupplier;
+    spec.userdata = player;
 
     // Create the output
-    SDL_AudioDeviceID out = SDL_OpenAudioDevice(name, 0, &modified, nullptr, 0);
+    SDL_AudioDeviceID out = SDL_OpenAudioDevice(name, 0, &spec, &spec, SDL_AUDIO_ALLOW_ANY_CHANGE);
+
     if (!out)
     {
         delete player;
@@ -37,16 +40,24 @@ auto Player::Create(SDL_AudioSpec spec, const std::optional<std::string>& device
 Player::~Player()
 {
     Clear();
+    SDL_CloseAudioDevice(Out_);
 }
 
-auto Player::Enqueue(const Track& audio) noexcept -> std::future<void>
+auto Player::Enqueue(const Track& audio) noexcept -> std::optional<std::future<void>>
 {
     // Open the audio device ( for this audio )
     std::lock_guard _ { BufferLock_ };
     {
+        // Resample the track in order
+        auto adjusted = Utils::Resample(audio, Spec_);
+        if (!adjusted)
+        {
+            return std::nullopt;
+        }
+
         // Add new track to the queue
-        Buffer_.emplace_back(audio.Buffer(), std::promise<void> {}, 0);
-        BufferLength_ += audio.Buffer().size();
+        Buffer_.emplace_back(adjusted->Buffer(), std::promise<void> {}, 0);
+        BufferLength_ += adjusted->Buffer().size();
 
         // Possibly unpause the audio device
         ReviseDevicePause();
@@ -120,7 +131,7 @@ auto Player::DurationLeft() const noexcept -> time_t
     }
 }
 
-void Player::AudioSupplier(void* userdata, Uint8* stream, int len) noexcept
+void Player::AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept
 {
     auto* self = (Player*)userdata;
     std::unique_lock lock { self->BufferLock_ };
