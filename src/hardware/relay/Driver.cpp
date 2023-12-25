@@ -1,8 +1,8 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/switch/SwitchDriver.h"
-using namespace ml;
+#include "hardware/relay/Driver.h"
+using namespace ml::relay;
 
-auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<SwitchDriver>
+auto Driver::Create(const std::string& port) noexcept -> std::shared_ptr<Driver>
 {
     int fd = open (port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0)
@@ -14,7 +14,7 @@ auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<S
     // Do the init ( on fail all operations will be undone )
     auto r = [&]()
     {
-        // Lock the port, so no other process can access the switch
+        // Lock the port, so no other process can access the relay
         if (flock(fd, LOCK_EX | LOCK_NB) != 0)
         {
             return false;
@@ -59,12 +59,12 @@ auto SwitchDriver::Create(const std::string& port) noexcept -> std::shared_ptr<S
     }
 
     // Return the created driver
-    return std::shared_ptr<SwitchDriver> {
-        new SwitchDriver { fd, port }
+    return std::shared_ptr<Driver> {
+        new Driver { fd, port }
     };
 }
 
-SwitchDriver::~SwitchDriver()
+Driver::~Driver()
 {
     Close();
 
@@ -72,37 +72,37 @@ SwitchDriver::~SwitchDriver()
     flock(PortFd_, LOCK_UN);
 }
 
-void SwitchDriver::Close() noexcept
+void Driver::Close() noexcept
 {
     // set dtr line high
     UpdatePort(TIOCM_DTR, 0);
     Enabled_ = true;
 }
 
-void SwitchDriver::Open() noexcept
+void Driver::Open() noexcept
 {
     // set dtr line low
     UpdatePort(0, TIOCM_DTR);
     Enabled_ = false;
 }
 
-auto SwitchDriver::Closed() const noexcept -> bool
+auto Driver::Closed() const noexcept -> bool
 {
     return Enabled_;
 }
 
-auto SwitchDriver::Path() const noexcept -> std::string_view
+auto Driver::Path() const noexcept -> std::string_view
 {
     return Port_;
 }
 
-SwitchDriver::SwitchDriver(int fd, std::string port) noexcept
+Driver::Driver(int fd, std::string port) noexcept
     : PortFd_ { fd }, Port_ { std::move(port) }
 {
     Close(); // enforce the safe state
 }
 
-void SwitchDriver::UpdatePort(int add, int remove) noexcept
+void Driver::UpdatePort(int add, int remove) noexcept
 {
     std::lock_guard _ { UpdateLock_ };
 

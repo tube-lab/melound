@@ -120,7 +120,7 @@ auto ChannelsMixer::DurationLeft() const noexcept -> time_t
 auto ChannelsMixer::CountEnabled() const noexcept -> size_t
 {
     std::lock_guard _ { ChannelsStatesLock_ };
-    return std::reduce(EnabledChannels_.begin(), EnabledChannels_.end());
+    return std::count(EnabledChannels_.begin(), EnabledChannels_.end(), true);
 }
 
 auto ChannelsMixer::Channels() const noexcept -> size_t

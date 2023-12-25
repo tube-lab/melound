@@ -18,7 +18,7 @@ namespace ml::speaker
         /** Time that the amplifier requires to cool down, so it's unusable again. */
         time_t CoolingDuration {};
 
-        /** The port to which the power-switch is connected. */
+        /** The port to which the power-relay is connected. */
         std::string PowerControlPort {};
 
         /** The name of the audio output. */

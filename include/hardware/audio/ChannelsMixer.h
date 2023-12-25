@@ -4,7 +4,7 @@
 #include "hardware/audio/Player.h"
 #include "hardware/audio/Track.h"
 
-#include <numeric>
+#include <algorithm>
 #include <vector>
 #include <mutex>
 #include <ranges>
@@ -30,6 +30,7 @@ namespace ml::audio
         mutable std::recursive_mutex ChannelsStatesLock_ {};
 
     public:
+        /** Creates the channel mixer that's bound to some audio-device. */
         static auto Create(uint channels, const std::optional<std::string>& audioDevice = std::nullopt) -> std::shared_ptr<ChannelsMixer>;
 
         /** Temporary pauses the playback in all channels. */
@@ -80,7 +81,7 @@ namespace ml::audio
         /** Determines the duration of the longest channel. */
         auto DurationLeft() const noexcept -> time_t;
 
-        /** Returns the number of mixer' enabled channels. */
+        /** Returns the number of enabled channels that currently enabled. */
         auto CountEnabled() const noexcept -> size_t;
 
         /** Returns the number of mixer' channels. */

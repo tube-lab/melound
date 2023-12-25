@@ -47,7 +47,10 @@ namespace ml::audio
         mutable std::mutex BufferLock_;
 
     public:
+        /** Creates a player that utilizes the given audio output. */
         static auto Create(const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
+
+        /** Stops playback and closes the audio device. */
         ~Player();
 
         /** Plays the audio track. Doesn't clear the pause state. Fails if the track can't be resampled properly. */

@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 23)
 add_executable(melound src/main.cpp
         include/hardware/speaker/Driver.h
         include/hardware/speaker/Config.h
-        include/hardware/switch/SwitchDriver.h
+        include/hardware/relay/Driver.h
 
         include/hardware/audio/Track.h
         include/hardware/audio/TrackLoader.h
@@ -19,7 +19,7 @@ add_executable(melound src/main.cpp
         include/hardware/amplifier/Config.h
         include/hardware/amplifier/Driver.h
 
-        src/hardware/switch/SwitchDriver.cpp
+        src/hardware/relay/Driver.cpp
 
         src/hardware/audio/Track.cpp
         src/hardware/audio/TrackLoader.cpp

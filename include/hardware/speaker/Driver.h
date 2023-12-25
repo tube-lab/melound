@@ -2,8 +2,8 @@
 #pragma once
 
 #include "Config.h"
-#include "hardware/audio/core/Player.h"
-#include "hardware/switch/SwitchDriver.h"
+#include "hardware/audio/Player.h"
+#include "hardware/relay/Driver.h"
 #include "utils/Time.h"
 
 #include <optional>
@@ -22,38 +22,7 @@ namespace ml::speaker
      */
     class Driver
     {
-        struct SinkInfo : Sink
-        {
-            std::shared_ptr<audio::Player> Player;
-        };
 
-        struct SinkStats
-        {
-            std::promise<bool> GrabPromise;
-            time_t ExpiresAt {};
-            bool Opened {};
-        };
-
-        // Protocol constants
-        static constexpr time_t ProlongationDuration = 1000;
-
-        // Initial configuration
-        const Config Config_;
-        const std::shared_ptr<SwitchDriver> Switch_;
-        const std::unordered_map<std::string, SinkInfo> Sinks_;
-
-        std::unordered_map<std::string, SinkStats> SinksStats_;
-        std::mutex SinksStatsLock_;
-
-        std::atomic<bool> DesiredAmplifierReady_;
-        std::atomic<bool> AmplifierReady_;
-        std::atomic<time_t> LastAmplifierActiveTime_;
-
-        std::atomic_bool TurnedOn_;
-        std::atomic_int Last_;
-        std::atomic_int LastActiveTime_;
-
-        std::jthread Controller_;
 
     public:
         static auto Create(const Config& config) noexcept -> std::shared_ptr<Driver>;
@@ -100,7 +69,5 @@ namespace ml::speaker
 
         void ControlLoop(const std::stop_token& token) noexcept;
         void CloseExpiredSinks(time_t time) noexcept;
-
-        auto FindSinkInfo(const std::string& name) -> const SinkInfo&;
     };
 }
