@@ -16,12 +16,16 @@ namespace ml::audio
 {
     /**
      * @brief A simple audio thread-safe player.
+     * @safety Fully exception and thread safe.
+     *
+     * Main features:
      * - Built on top of SDL audio subsystem.
      * - Provides pause/resume methods.
      * - Provides mute/unmute methods.
      * - Supports queue, so it is fully suitable for VoIP applications.
-     * Note, that the player is paused by default.
-     * Fully exception and thread safe.
+     *
+     * Important features:
+     * - The player is paused by default.
      */
     class Player
     {
@@ -46,7 +50,7 @@ namespace ml::audio
         static auto Create(const std::optional<std::string>& device = std::nullopt) -> std::shared_ptr<Player>;
         ~Player();
 
-        /** Plays the audio track. Doesn't clear the pause state. */
+        /** Plays the audio track. Doesn't clear the pause state. Fails if the track can't be resampled properly. */
         auto Enqueue(const Track& audio) noexcept -> std::optional<std::future<void>>;
 
         /** Empties the queue. Playback will be stopped immediately. Doesn't clear the pause state. */

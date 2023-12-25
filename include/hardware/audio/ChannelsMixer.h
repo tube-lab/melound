@@ -1,9 +1,10 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "hardware/audio/core/Player.h"
-#include "hardware/audio/core/Track.h"
+#include "hardware/audio/Player.h"
+#include "hardware/audio/Track.h"
 
+#include <numeric>
 #include <vector>
 #include <mutex>
 #include <ranges>
@@ -78,6 +79,9 @@ namespace ml::audio
 
         /** Determines the duration of the longest channel. */
         auto DurationLeft() const noexcept -> time_t;
+
+        /** Returns the number of mixer' enabled channels. */
+        auto CountEnabled() const noexcept -> size_t;
 
         /** Returns the number of mixer' channels. */
         auto Channels() const noexcept -> size_t;

@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/core/Track.h"
+#include "hardware/audio/Track.h"
 using namespace ml::audio;
 
 Track::Track(std::vector<uint8_t> buffer, SDL_AudioSpec spec) noexcept

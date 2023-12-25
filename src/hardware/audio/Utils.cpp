@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/core/Utils.h"
+#include "hardware/audio/Utils.h"
 using namespace ml::audio;
 
 auto Utils::EstimateBufferDuration(size_t bufferLength, SDL_AudioSpec spec) noexcept -> time_t

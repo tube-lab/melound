@@ -1,5 +1,5 @@
 #include "hardware/amplifier/Driver.h"
-#include "hardware/audio/core/TrackLoader.h"
+#include "hardware/audio/TrackLoader.h"
 
 #include <fstream>
 #include <iostream>
@@ -27,6 +27,16 @@ auto FromFile(const std::string& path)
     return TrackLoader::FromWav(data);
 }
 
+void wtf()
+{
+
+}
+
+void test()
+{
+    return wtf();
+}
+
 auto main() -> int
 {
     auto driver = Driver::Create(Config {
@@ -43,13 +53,13 @@ auto main() -> int
     {
         auto p = driver->Activate(i, false);
         p.wait();
-        std::cout << "Channel " << i << " has been enabled: " << p.get() << '\n';
+        std::cout << "Channel " << i << " has been enabled\n";
     }
 
     auto op = driver->Enqueue(1, *FromFile("./sound.wav"));
     if (!op)
     {
-        std::cerr << "Failed to enqueue\n";
+        std::cerr << "Failed to enqueue: " << op.error() << '\n';
         return 1;
     }
 

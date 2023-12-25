@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/core/Player.h"
+#include "hardware/audio/Player.h"
 using namespace ml::audio;
 
 auto Player::Create(const std::optional<std::string>& device) -> std::shared_ptr<Player>

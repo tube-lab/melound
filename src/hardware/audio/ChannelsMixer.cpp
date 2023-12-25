@@ -109,12 +109,18 @@ auto ChannelsMixer::DurationLeft(uint channel) const noexcept -> time_t
 auto ChannelsMixer::DurationLeft() const noexcept -> time_t
 {
     time_t longest = 0;
-    for (size_t i = 0; i < Channels(); ++i)
+    for (size_t i = 0; i < Channels_.size(); ++i)
     {
         longest = std::max(longest, Channels_[i]->DurationLeft());
     }
 
     return longest;
+}
+
+auto ChannelsMixer::CountEnabled() const noexcept -> size_t
+{
+    std::lock_guard _ { ChannelsStatesLock_ };
+    return std::reduce(EnabledChannels_.begin(), EnabledChannels_.end());
 }
 
 auto ChannelsMixer::Channels() const noexcept -> size_t

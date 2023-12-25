@@ -10,10 +10,10 @@ add_executable(melound src/main.cpp
         include/hardware/speaker/Config.h
         include/hardware/switch/SwitchDriver.h
 
-        include/hardware/audio/core/Track.h
-        include/hardware/audio/core/TrackLoader.h
-        include/hardware/audio/core/Player.h
-        include/hardware/audio/core/Utils.h
+        include/hardware/audio/Track.h
+        include/hardware/audio/TrackLoader.h
+        include/hardware/audio/Player.h
+        include/hardware/audio/Utils.h
         include/hardware/audio/ChannelsMixer.h
 
         include/hardware/amplifier/Config.h
@@ -21,16 +21,17 @@ add_executable(melound src/main.cpp
 
         src/hardware/switch/SwitchDriver.cpp
 
-        src/hardware/audio/core/Track.cpp
-        src/hardware/audio/core/TrackLoader.cpp
-        src/hardware/audio/core/Player.cpp
-        src/hardware/audio/core/Utils.cpp
+        src/hardware/audio/Track.cpp
+        src/hardware/audio/TrackLoader.cpp
+        src/hardware/audio/Player.cpp
+        src/hardware/audio/Utils.cpp
 
         src/hardware/speaker/SpeakerDriver.cpp
         include/hardware/speaker/Sink.h
         include/utils/Time.h
         src/hardware/audio/ChannelsMixer.cpp
         src/hardware/amplifier/Driver.cpp
+        include/hardware/amplifier/DriverErrors.h
 )
 
 # Add SDL2 library

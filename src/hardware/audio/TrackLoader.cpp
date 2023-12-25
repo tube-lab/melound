@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/audio/core/TrackLoader.h"
+#include "hardware/audio/TrackLoader.h"
 using namespace ml::audio;
 
 auto TrackLoader::FromWav(const std::vector<char> &wav) noexcept -> std::optional<Track>
