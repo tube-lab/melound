@@ -68,7 +68,7 @@ namespace ml::audio
         /** Resumes a previously paused playback. */
         void Resume() noexcept;
 
-        /** Mutes the player.*/
+        /** Mutes the player. */
         void Mute() noexcept;
 
         /** Unmutes the player. */

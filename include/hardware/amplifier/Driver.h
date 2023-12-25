@@ -53,7 +53,7 @@ namespace ml::amplifier
         std::shared_ptr<relay::Driver> Relay_;
         std::shared_ptr<audio::ChannelsMixer> Mixer_;
 
-        // Thread communication
+        // Inter-thread communication
         EventsList ControllerEvents_;
         std::mutex CommLock_;
 
@@ -80,7 +80,7 @@ namespace ml::amplifier
         auto Activate(uint channel, bool urgent) noexcept -> std::future<void>;
 
         /** Disables the channel and completely resets it ( including the pause state ). */
-        void Deactivate(uint channel) noexcept;
+        auto Deactivate(uint channel) noexcept -> std::future<void>;
 
         /** Appends the audio track to the particular active channel. Doesn't clear the pause state. */
         auto Enqueue(uint channel, const audio::Track& audio) noexcept -> std::expected<std::future<void>, EnqueueError>;
@@ -136,8 +136,11 @@ namespace ml::amplifier
         Driver(Driver&&) noexcept = delete;
 
         static void ControllerLoop(const std::stop_token& token, Driver* self) noexcept;
-        static auto Warmed(time_t time, time_t workingMoment, time_t poweringDuration, bool urgent, bool working, const Config& config) noexcept -> bool;
+        static auto Warmed(time_t time, time_t workingMoment, time_t poweringInterval, bool urgent, bool working, const Config& config) noexcept -> bool;
         static void FulfillEvents(ChannelEventsList::iterator begin, ChannelEventsList::iterator end, ChannelEventsList& list) noexcept;
+
+        void EnablePowerRelay() noexcept;
+        void DisablePowerRelay() noexcept;
 
         void EnableMixerChannel(uint i) noexcept;
         void DisableMixerChannel(uint i) noexcept;

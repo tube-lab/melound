@@ -64,8 +64,12 @@ auto main() -> int
     }
 
     driver->Resume(1);
+    driver->Deactivate(0);
+    driver->Deactivate(1);
+
     op->wait();
 
+    std::cout << "Oops, deactivated: " << driver->Working() << "\n";
     std::cout << "Played music\n";
     return 0;
 }

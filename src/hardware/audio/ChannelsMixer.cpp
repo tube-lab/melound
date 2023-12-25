@@ -2,8 +2,6 @@
 #include "hardware/audio/ChannelsMixer.h"
 using namespace ml::audio;
 
-#include <iostream> // TODO: Debug
-
 auto ChannelsMixer::Create(uint channels, const std::optional<std::string> &audioDevice)
     -> std::shared_ptr<ChannelsMixer>
 {

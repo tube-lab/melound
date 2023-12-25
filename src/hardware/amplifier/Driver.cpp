@@ -44,7 +44,7 @@ auto Driver::Activate(uint channel, bool urgent) noexcept -> std::future<void>
     return ControllerEvents_[channel].back().Listener.get_future();
 }
 
-void Driver::Deactivate(uint channel) noexcept
+auto Driver::Deactivate(uint channel) noexcept -> std::future<void>
 {
     std::lock_guard _ { CommLock_ };
     ControllerEvents_[channel].push_back({
@@ -52,6 +52,8 @@ void Driver::Deactivate(uint channel) noexcept
         .Urgent = false,
         .Listener = std::promise<void>()
     });
+
+    return ControllerEvents_[channel].back().Listener.get_future();
 }
 
 auto Driver::Enqueue(uint channel, const audio::Track &audio) noexcept -> std::expected<std::future<void>, EnqueueError>
@@ -160,7 +162,7 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
     time_t ptime = TimeNow();
     while (!token.stop_requested())
     {
-        std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds { 20 });
 
         const auto time = TimeNow();
         const auto dt = time - ptime;
@@ -186,29 +188,23 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
             }
         }
 
-        // Drop all the deactivation events ( it may only be the first element in each sub-list )
-        for (auto& part : events)
-        {
-            if (!part.empty() && !part.front().Enabled)
-            {
-                part.front().Listener.set_value();
-                part.pop_front();
-            }
-        }
-
         // Generate a final requirement for the amplifier controller based on the remaining events + the current state
         std::vector<bool> active = self->ActiveChannels_;
-        bool turnOn = self->Working_;
+        bool turnOn = false;
         bool urgent = false;
 
-        for (uint64_t i = 0; i < events.size(); ++i)
+        for (uint64_t i = 0; i < self->Config_.Channels; ++i)
         {
             for (auto& event : events[i])
             {
-                active[i] = active[i] | event.Enabled;
-                turnOn |= event.Enabled;
+                active[i] = event.Enabled;
                 urgent |= event.Urgent;
             }
+        }
+
+        for (uint i = 0; i < self->Config_.Channels; ++i)
+        {
+            turnOn |= active[i];
         }
 
         // Refine requirements into commands for the hardware controllers
@@ -224,18 +220,28 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
             );
         }
 
+        // Update the state, should be changed before the fulfillment of events
+        self->Working_ = powered && playing;
+        self->LastWorkingMoment_ = (powered && playing) ? (time_t)time : (time_t)self->LastWorkingMoment_;
+        self->PoweringDuration_ = powered ? (self->PoweringDuration_ + dt) : 0;
+
+        for (uint i = 0; i < self->Config_.Channels; ++i)
+        {
+            self->ActiveChannels_[i] = active[i] && (powered && playing);
+        }
+
         // Update the power relay state
         if (powered)
         {
-            self->Relay_->Close();
+            self->EnablePowerRelay();
         }
         else
         {
-            self->Relay_->Open();
+            self->DisablePowerRelay();
         }
 
         // Update the channel states
-        for (size_t i = 0; i < active.size(); ++i)
+        for (size_t i = 0; i < self->Config_.Channels; ++i)
         {
             if (active[i] && playing)
             {
@@ -247,32 +253,26 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
             }
         }
 
-        // Update the state
-        self->Working_ = powered && playing;
-        self->LastWorkingMoment_ = (powered && playing) ? (time_t)time : (time_t)self->LastWorkingMoment_;
-        self->PoweringDuration_ = powered ? (self->PoweringDuration_ + dt) : 0;
-
-        for (uint i = 0; i < self->Config_.Channels; ++i)
+        // Close the remaining events
+        for (size_t i = 0; i < events.size(); ++i)
         {
-            self->ActiveChannels_[i] = active[i] && (powered && playing);
-        }
-
-        // Close the activation events
-        if (self->Working_)
-        {
-            for (size_t i = 0; i < events.size(); ++i)
+            if (self->Working_)
             {
                 FulfillEvents(events[i].begin(), events[i].end(), events[i]);
+            }
+            else if (!events[i].empty() && !events[i].front().Enabled)
+            {
+                FulfillEvents(events[i].begin(), events[i].begin()++, events[i]);
             }
         }
     }
 }
 
-auto Driver::Warmed(time_t time, time_t workingMoment, time_t poweringDuration, bool urgent, bool working, const Config& config) noexcept -> bool
+auto Driver::Warmed(time_t time, time_t workingMoment, time_t poweringInterval, bool urgent, bool working, const Config& config) noexcept -> bool
 {
     return urgent ||
            working ||
-           poweringDuration >= config.WarmingDuration ||
+           poweringInterval >= config.WarmingDuration ||
            (time - workingMoment <= config.CoolingDuration);
 }
 
@@ -284,6 +284,16 @@ void Driver::FulfillEvents(ChannelEventsList::iterator begin, ChannelEventsList:
     }
 
     list.erase(begin, end);
+}
+
+void Driver::EnablePowerRelay() noexcept
+{
+    Relay_->Closed() ? void() : Relay_->Close();
+}
+
+void Driver::DisablePowerRelay() noexcept
+{
+    Relay_->Closed() ? Relay_->Open() : void();
 }
 
 void Driver::EnableMixerChannel(uint i) noexcept
