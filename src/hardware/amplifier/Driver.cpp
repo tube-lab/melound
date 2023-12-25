@@ -220,11 +220,6 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
             );
         }
 
-        // Update the state, should be changed before the fulfillment of events
-        self->Working_ = powered && playing;
-        self->LastWorkingMoment_ = (powered && playing) ? (time_t)time : (time_t)self->LastWorkingMoment_;
-        self->PoweringDuration_ = powered ? (self->PoweringDuration_ + dt) : 0;
-
         for (uint i = 0; i < self->Config_.Channels; ++i)
         {
             self->ActiveChannels_[i] = active[i] && (powered && playing);
@@ -252,6 +247,11 @@ void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
                 self->DisableMixerChannel(i);
             }
         }
+
+        // Update the state
+        self->Working_ = powered && playing;
+        self->LastWorkingMoment_ = (powered && playing) ? (time_t)time : (time_t)self->LastWorkingMoment_;
+        self->PoweringDuration_ = powered ? (self->PoweringDuration_ + dt) : 0;
 
         // Close the remaining events
         for (size_t i = 0; i < events.size(); ++i)
