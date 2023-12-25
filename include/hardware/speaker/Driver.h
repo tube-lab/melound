@@ -15,7 +15,6 @@
 
 namespace ml::speaker
 {
-
     /**
      * @brief A driver for a speaker driver.
      * @safety Exception safe, but not thread safe.

@@ -58,7 +58,7 @@ auto Driver::Deactivate(uint channel) noexcept -> std::future<void>
 
 auto Driver::Enqueue(uint channel, const audio::Track &audio) noexcept -> std::expected<std::future<void>, EnqueueError>
 {
-    if (!Mixer_->Enabled(channel))
+    if (!Active(channel))
     {
         return std::unexpected { EE_Closed };
     }
@@ -141,6 +141,7 @@ auto Driver::Channels() const noexcept -> size_t
 
 auto Driver::Working() const noexcept -> bool
 {
+    std::lock_guard _ { StateLock_ };
     return Working_;
 }
 
@@ -317,6 +318,6 @@ void Driver::DisableMixerChannel(uint i) noexcept
 
 auto Driver::DoIfChannelEnabled(uint i, const std::function<void()>& f) noexcept -> bool
 {
-    Mixer_->Enabled(i) ? f() : void();
-    return Mixer_->Enabled(i);
+    Active(i) ? f() : void();
+    return Active(i);
 }

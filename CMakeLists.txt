@@ -34,7 +34,7 @@ add_executable(melound src/main.cpp
 
         src/hardware/amplifier/Driver.cpp
 
-        src/hardware/speaker/SpeakerDriver.cpp
+        src/hardware/speaker/Driver.cpp
 )
 
 # Add SDL2 library

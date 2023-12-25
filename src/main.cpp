@@ -27,16 +27,6 @@ auto FromFile(const std::string& path)
     return TrackLoader::FromWav(data);
 }
 
-void wtf()
-{
-
-}
-
-void test()
-{
-    return wtf();
-}
-
 auto main() -> int
 {
     auto driver = Driver::Create(Config {
@@ -69,7 +59,7 @@ auto main() -> int
 
     op->wait();
 
-    std::cout << "Oops, deactivated: " << driver->Working() << "\n";
+    std::cout << "Fine, deactivated: " << driver->Working() << "\n";
     std::cout << "Played music\n";
     return 0;
 }
