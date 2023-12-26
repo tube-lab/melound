@@ -4,6 +4,8 @@
 #include "Track.h"
 #include "Utils.h"
 
+#include "utils/CustomConstructor.h"
+
 #include <optional>
 #include <utility>
 #include <string>
@@ -27,7 +29,7 @@ namespace ml::audio
      * Important features:
      * - The player is paused by default.
      */
-    class Player
+    class Player : public CustomConstructor
     {
         struct Entry
         {
@@ -74,7 +76,7 @@ namespace ml::audio
         /** Unmutes the player. */
         void Unmute() noexcept;
 
-        /** Returns that pause state. */
+        /** Returns the pause state. */
         auto Paused() const noexcept -> bool;
 
         /** Returns the mute state. */
@@ -84,10 +86,6 @@ namespace ml::audio
         auto DurationLeft() const noexcept -> time_t;
 
     private:
-        Player() noexcept = default;
-        Player(const Player&) noexcept = delete;
-        Player(Player&&) noexcept = delete;
-
         static void AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept;
         void DropFirstEntry() noexcept;
         void ReviseDevicePause() noexcept;

@@ -81,7 +81,7 @@ namespace ml::audio
         /** Determines the duration of the longest channel. */
         auto DurationLeft() const noexcept -> time_t;
 
-        /** Returns the number of enabled channels that currently enabled. */
+        /** Returns the number of channels that's currently enabled. */
         auto CountEnabled() const noexcept -> size_t;
 
         /** Returns the number of mixer' channels. */

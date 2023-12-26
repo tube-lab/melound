@@ -1,5 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #include "hardware/relay/Driver.h"
+
+#include <memory>
 using namespace ml::relay;
 
 auto Driver::Create(const std::string& port) noexcept -> std::shared_ptr<Driver>
@@ -59,9 +61,12 @@ auto Driver::Create(const std::string& port) noexcept -> std::shared_ptr<Driver>
     }
 
     // Return the created driver
-    return std::shared_ptr<Driver> {
-        new Driver { fd, port }
-    };
+    auto driver = std::make_shared<Driver>();
+    driver->PortFd_ = fd;
+    driver->Port_ = port;
+    driver->Close(); // enforce the safe state
+
+    return driver;
 }
 
 Driver::~Driver()
@@ -96,24 +101,19 @@ auto Driver::Path() const noexcept -> std::string_view
     return Port_;
 }
 
-Driver::Driver(int fd, std::string port) noexcept
-    : PortFd_ { fd }, Port_ { std::move(port) }
-{
-    Close(); // enforce the safe state
-}
-
 void Driver::UpdatePort(int add, int remove) noexcept
 {
     std::lock_guard _ { UpdateLock_ };
-
-    // Apply the mask to the actual port status
-    int st;
-    if (ioctl(PortFd_, TIOCMGET, &st) == 0)
     {
-        st |= add;
-        st &= ~remove;
+        // Apply the mask to the actual port status
+        int st;
+        if (ioctl(PortFd_, TIOCMGET, &st) == 0)
+        {
+            st |= add;
+            st &= ~remove;
 
-        ioctl(PortFd_, TIOCMSET, &st);
+            ioctl(PortFd_, TIOCMSET, &st);
+        }
     }
 }
 

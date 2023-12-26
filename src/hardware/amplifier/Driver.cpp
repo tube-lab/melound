@@ -1,10 +1,12 @@
 // Created by Tube Lab. Part of the meloun project.
 #include "hardware/amplifier/Driver.h"
 #include <iostream> // TODO: Debug
+
 using namespace ml::amplifier;
 
 auto Driver::Create(const Config& config) noexcept -> std::shared_ptr<Driver>
 {
+    // Initialize subsystems
     auto relay = relay::Driver::Create(config.PowerControlPort);
     if (!relay)
     {
@@ -17,9 +19,15 @@ auto Driver::Create(const Config& config) noexcept -> std::shared_ptr<Driver>
         return nullptr;
     }
 
-    return std::shared_ptr<Driver> {
-        new Driver {config, relay, mixer }
-    };
+    // Create the driver
+    auto driver = std::make_shared<Driver>();
+    driver->Config_ = config;
+    driver->Relay_ = relay;
+    driver->Mixer_ = mixer;
+    driver->Channels_ = std::vector<ChannelInfo> (config.Channels);
+    driver->Controller_ = std::jthread { [driver](const auto& t) { driver->ControllerLoop(t); } };
+
+    return driver;
 }
 
 void Driver::Pause() noexcept
@@ -32,106 +40,140 @@ void Driver::Resume() noexcept
     Mixer_->Resume();
 }
 
-auto Driver::Activate(uint channel, bool urgent) noexcept -> std::future<void>
+void Driver::Open(uint channel) noexcept
 {
-    std::lock_guard _ { CommLock_ };
-    ControllerEvents_[channel].push_back({
-        .Enabled = true,
-        .Urgent = urgent,
-        .Listener = std::promise<void>()
-    });
-
-    return ControllerEvents_[channel].back().Listener.get_future();
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Closed)
+        {
+            Channels_[channel].State = C_Opened;
+        }
+    }
 }
 
-auto Driver::Deactivate(uint channel) noexcept -> std::future<void>
+void Driver::Close(uint channel) noexcept
 {
-    std::lock_guard _ { CommLock_ };
-    ControllerEvents_[channel].push_back({
-        .Enabled = false,
-        .Urgent = false,
-        .Listener = std::promise<void>()
-    });
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State != C_Closed)
+        {
+            Deactivate(channel);
+            Channels_[channel].State = C_Closed;
+        }
+    }
+}
 
-    return ControllerEvents_[channel].back().Listener.get_future();
+auto Driver::Activate(uint channel, bool urgent) noexcept -> std::optional<std::future<bool>>
+{
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Opened)
+        {
+            Channels_[channel].State = C_PendingActivation;
+            Channels_[channel].UrgentActivation = urgent;
+            Channels_[channel].ActivationListeners.emplace_back();
+            return Channels_[channel].ActivationListeners.back().get_future();
+        }
+
+        return std::nullopt;
+    }
+}
+
+auto Driver::Deactivate(uint channel) noexcept -> bool
+{
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Active)
+        {
+            Channels_[channel].State = C_Opened;
+            FulfillActivationListeners(channel, false); // Mark all the requests as cancelled
+            return true;
+        }
+
+        return false;
+    }
 }
 
 auto Driver::Enqueue(uint channel, const audio::Track &audio) noexcept -> std::expected<std::future<void>, EnqueueError>
 {
-    if (!Active(channel))
+    std::lock_guard _ { StateLock_ };
     {
-        return std::unexpected { EE_Closed };
-    }
+        if (Channels_[channel].State != C_Active)
+        {
+            return std::unexpected{EE_NotActive};
+        }
 
-    auto promise = Mixer_->Enqueue(channel, audio);
-    if (!promise)
-    {
-        return std::unexpected { EE_BadTrack };
-    }
+        auto promise = Mixer_->Enqueue(channel, audio);
+        if (!promise)
+        {
+            return std::unexpected{EE_BadTrack};
+        }
 
-    return std::move(*promise);
+        return std::move(*promise);
+    }
 }
 
 auto Driver::Clear(uint channel) noexcept -> bool
 {
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Clear(channel); });
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Active)
+        {
+            Mixer_->Clear(channel);
+            return true;
+        }
+
+        return false;
+    }
 }
 
 auto Driver::Skip(uint channel) noexcept -> bool
 {
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Skip(channel); });
-}
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Active)
+        {
+            Mixer_->Skip(channel);
+            return true;
+        }
 
-auto Driver::Pause(uint channel) noexcept -> bool
-{
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Mute(channel); });
-}
-
-auto Driver::Resume(uint channel) noexcept -> bool
-{
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Resume(channel); });
-}
-
-auto Driver::Mute(uint channel) noexcept -> bool
-{
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Mute(channel); });
-}
-
-auto Driver::Unmute(uint channel) noexcept -> bool
-{
-    return DoIfChannelEnabled(channel, [&]() { Mixer_->Unmute(channel); });
-}
-
-auto Driver::Paused(uint channel) const noexcept -> std::optional<bool>
-{
-    return Mixer_->Enabled(channel) ? std::optional { Mixer_->Paused(channel) } : std::nullopt;
-}
-
-auto Driver::Muted(uint channel) const noexcept -> std::optional<bool>
-{
-    return Mixer_->Enabled(channel) ? std::optional { Mixer_->Muted(channel) } : std::nullopt;
+        return false;
+    }
 }
 
 auto Driver::DurationLeft(uint channel) const noexcept -> std::optional<time_t>
 {
-    return Mixer_->Enabled(channel) ? std::optional { Mixer_->DurationLeft(channel) } : std::nullopt;
+    std::lock_guard _ { StateLock_ };
+    {
+        if (Channels_[channel].State == C_Active)
+        {
+            return Mixer_->DurationLeft(channel);
+        }
+
+        return false;
+    }
 }
 
 auto Driver::DurationLeft() const noexcept -> std::optional<time_t>
 {
-    return Mixer_->CountEnabled() ? std::optional { Mixer_->DurationLeft() } : std::nullopt;
+    std::lock_guard _ { StateLock_ };
+    {
+        for (uint64_t i = 0; i < Config_.Channels; ++i)
+        {
+            if (Channels_[i].State == C_Active)
+            {
+                return Mixer_->DurationLeft(i);
+            }
+        }
+
+        return std::nullopt;
+    }
 }
 
-auto Driver::Active(uint channel) const noexcept -> bool
+auto Driver::State(uint channel) const noexcept -> ChannelState
 {
     std::lock_guard _ { StateLock_ };
-    return ActiveChannels_[channel];
-}
-
-auto Driver::CountActive() const noexcept -> size_t
-{
-    std::lock_guard _ { StateLock_ };
-    return std::count(ActiveChannels_.begin(), ActiveChannels_.end(), true);
+    return Channels_[channel].State;
 }
 
 auto Driver::Channels() const noexcept -> size_t
@@ -139,10 +181,10 @@ auto Driver::Channels() const noexcept -> size_t
     return Config_.Channels;
 }
 
-auto Driver::Working() const noexcept -> bool
+auto Driver::Powered() const noexcept -> bool
 {
     std::lock_guard _ { StateLock_ };
-    return Working_;
+    return Powered_;
 }
 
 auto Driver::ActivationDuration() const noexcept -> time_t
@@ -150,143 +192,89 @@ auto Driver::ActivationDuration() const noexcept -> time_t
     return Config_.WarmingDuration;
 }
 
-Driver::Driver(Config config, std::shared_ptr<relay::Driver> sw, std::shared_ptr<audio::ChannelsMixer> mixer) noexcept
-    : Config_(std::move(config)), Relay_(std::move(sw)), Mixer_(std::move(mixer))
+/* === Hardware management logic === */
+void Driver::ControllerLoop(const std::stop_token& token) noexcept
 {
-    ControllerEvents_ = EventsList (config.Channels);
-    ActiveChannels_ = std::vector<bool> (config.Channels);
-    Controller_ = std::jthread {&Driver::ControllerLoop, this };
-}
-
-void Driver::ControllerLoop(const std::stop_token& token, Driver* self) noexcept
-{
-    time_t ptime = TimeNow();
     while (!token.stop_requested())
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds { 20 });
-
+        std::lock_guard _ { StateLock_ };
         const auto time = TimeNow();
-        const auto dt = time - ptime;
-        ptime = time;
-
-        std::lock_guard _ { self->CommLock_ };
-        std::lock_guard __ { self->StateLock_ };
-
-        auto& events = self->ControllerEvents_;
-
-        // Reduce events that cancel each other
-        for (auto& part : events)
-        {
-            auto it = std::find_if(part.rbegin(), part.rend(), [&](auto& it)
-            {
-                return !it.Enabled;
-            });
-
-            if (it != part.rend())
-            {
-                // Element on which "it" points is excluded
-                FulfillEvents(part.begin(), std::next(it).base(), part);
-            }
-        }
-
-        // Generate a final requirement for the amplifier controller based on the remaining events + the current state
-        std::vector<bool> active = self->ActiveChannels_;
-        bool turnOn = false;
-        bool urgent = false;
-
-        for (uint64_t i = 0; i < self->Config_.Channels; ++i)
-        {
-            for (auto& event : events[i])
-            {
-                active[i] = event.Enabled;
-                urgent |= event.Urgent;
-            }
-        }
-
-        for (uint i = 0; i < self->Config_.Channels; ++i)
-        {
-            turnOn |= active[i];
-        }
-
-        // Refine requirements into commands for the hardware controllers
-        bool powered = false;
-        bool playing = false;
-
-        if (turnOn)
-        {
-            powered = true;
-            playing = Warmed (
-                time, self->LastWorkingMoment_, self->PoweringDuration_,
-                urgent, self->Working_, self->Config_
-            );
-        }
-
-        for (uint i = 0; i < self->Config_.Channels; ++i)
-        {
-            self->ActiveChannels_[i] = active[i] && (powered && playing);
-        }
 
         // Update the power relay state
-        if (powered)
+        bool oldPoweredState = Powered_;
+        Powered_ = false;
+
+        for (uint64_t i = 0; i < Config_.Channels; ++i)
         {
-            self->EnablePowerRelay();
+            Powered_ |= Channels_[i].State == C_PendingActivation;
+            Powered_ |= Channels_[i].State == C_Active;
+        }
+
+        if (Powered_)
+        {
+            EnablePowerRelay();
         }
         else
         {
-            self->DisablePowerRelay();
+            DisablePowerRelay();
         }
 
-        // Update the channel states
-        for (size_t i = 0; i < self->Config_.Channels; ++i)
+        // Update the mixer state
+        for (uint64_t i = 0; i < Config_.Channels; ++i)
         {
-            if (active[i] && playing)
+            if (Channels_[i].State == C_Closed) DisableMixerChannel(i);
+            else if (Channels_[i].State == C_Active) EnableMixerChannel(i);
+            else PutMixerChannelOnHold(i);
+        }
+
+        // Update powered interval
+        if (Powered_)
+        {
+            if (!oldPoweredState)
             {
-                self->EnableMixerChannel(i);
+                PreviousPoweredInterval_ = PoweredInterval_;
+                PoweredInterval_ = { time, time };
             }
             else
             {
-                self->DisableMixerChannel(i);
+                PoweredInterval_.second = time;
             }
         }
 
-        // Update the state
-        self->Working_ = powered && playing;
-        self->LastWorkingMoment_ = (powered && playing) ? (time_t)time : (time_t)self->LastWorkingMoment_;
-        self->PoweringDuration_ = powered ? (self->PoweringDuration_ + dt) : 0;
-
-        // Close the remaining events
-        for (size_t i = 0; i < events.size(); ++i)
+        // If already warm - fulfill all the listeners
+        for (uint64_t i = 0; i < Config_.Channels; ++i)
         {
-            if (self->Working_)
+            if (Channels_[i].State == C_PendingActivation && Warm(time, Channels_[i].UrgentActivation))
             {
-                FulfillEvents(events[i].begin(), events[i].end(), events[i]);
-            }
-            else if (!events[i].empty() && !events[i].front().Enabled)
-            {
-                FulfillEvents(events[i].begin(), events[i].begin()++, events[i]);
+                Channels_[i].State = C_Active;
+                FulfillActivationListeners(i, true);
             }
         }
+
+        std::this_thread::yield();
     }
 }
 
-auto Driver::Warmed(time_t time, time_t workingMoment, time_t poweringInterval, bool urgent, bool working, const Config& config) noexcept -> bool
+auto Driver::Warm(time_t time, bool urgent) const noexcept -> bool
 {
     return urgent ||
-           working ||
-           poweringInterval >= config.WarmingDuration ||
-           (time - workingMoment <= config.CoolingDuration);
+           (PoweredInterval_.second - PoweredInterval_.first >= Config_.WarmingDuration ) ||
+           (time - PreviousPoweredInterval_.second <= Config_.CoolingDuration);
 }
 
-void Driver::FulfillEvents(ChannelEventsList::iterator begin, ChannelEventsList::iterator end, ChannelEventsList& list) noexcept
+void Driver::FulfillActivationListeners(uint channel, bool result) noexcept
 {
-    for (auto k = begin; k != end; ++k)
+    std::lock_guard _ { StateLock_ };
     {
-        k->Listener.set_value();
+        for (auto& p : Channels_[channel].ActivationListeners)
+        {
+            p.set_value(result);
+        }
+        Channels_[channel].ActivationListeners.clear();
     }
-
-    list.erase(begin, end);
 }
 
+/* === Subsystems management === */
 void Driver::EnablePowerRelay() noexcept
 {
     Relay_->Closed() ? void() : Relay_->Close();
@@ -302,6 +290,15 @@ void Driver::EnableMixerChannel(uint i) noexcept
     if (!Mixer_->Enabled(i))
     {
         Mixer_->Enable(i);
+        Mixer_->Resume(i);
+    }
+}
+
+void Driver::PutMixerChannelOnHold(uint i) noexcept
+{
+    if (Mixer_->Enabled(i))
+    {
+        Mixer_->Clear(i);
     }
 }
 
@@ -310,14 +307,6 @@ void Driver::DisableMixerChannel(uint i) noexcept
     if (Mixer_->Enabled(i))
     {
         Mixer_->Clear(i);
-        Mixer_->Pause(i);
-        Mixer_->Unmute(i);
         Mixer_->Disable(i);
     }
-}
-
-auto Driver::DoIfChannelEnabled(uint i, const std::function<void()>& f) noexcept -> bool
-{
-    Active(i) ? f() : void();
-    return Active(i);
 }

@@ -126,9 +126,7 @@ auto Player::Muted() const noexcept -> bool
 auto Player::DurationLeft() const noexcept -> time_t
 {
     std::lock_guard _ { BufferLock_ };
-    {
-        return Utils::EstimateBufferDuration(BufferLength_, Spec_);
-    }
+    return Utils::EstimateBufferDuration(BufferLength_, Spec_);
 }
 
 void Player::AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept

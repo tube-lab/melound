@@ -118,7 +118,9 @@ auto ChannelsMixer::DurationLeft() const noexcept -> time_t
 auto ChannelsMixer::CountEnabled() const noexcept -> size_t
 {
     std::lock_guard _ { ChannelsStatesLock_ };
-    return std::count(EnabledChannels_.begin(), EnabledChannels_.end(), true);
+    {
+        return std::count(EnabledChannels_.begin(), EnabledChannels_.end(), true);
+    }
 }
 
 auto ChannelsMixer::Channels() const noexcept -> size_t
@@ -138,32 +140,35 @@ ChannelsMixer::ChannelsMixer(const std::vector<std::shared_ptr<Player>>& channel
 void ChannelsMixer::UpdateChannel(size_t channel, std::optional<bool> enabled, std::optional<bool> muted) noexcept
 {
     std::lock_guard _ {ChannelsStatesLock_ };
-    if (enabled) EnabledChannels_[channel] = *enabled;
-    if (muted) MutedChannels_[channel] = *muted;
+    {
+        if (enabled) EnabledChannels_[channel] = *enabled;
+        if (muted) MutedChannels_[channel] = *muted;
 
-    SelectChannel();
+        SelectChannel();
+    }
 }
 
 void ChannelsMixer::SelectChannel() noexcept
 {
-    std::lock_guard _ {ChannelsStatesLock_ };
-
-    // Mute all the channels except the first enabled one
-    bool found = false;
-    for (size_t i : std::views::iota(0ull, Channels_.size()) | std::views::reverse)
+    std::lock_guard _ { ChannelsStatesLock_ };
     {
-        if (EnabledChannels_[i] && !found)
+        // Mute all the channels except the first enabled one
+        bool found = false;
+        for (size_t i : std::views::iota(0ull, Channels_.size()) | std::views::reverse)
         {
-            if (!MutedChannels_[i])
+            if (EnabledChannels_[i] && !found)
             {
-                Channels_[i]->Unmute();
-            }
+                if (!MutedChannels_[i])
+                {
+                    Channels_[i]->Unmute();
+                }
 
-            found = true;
-        }
-        else
-        {
-            Channels_[i]->Mute();
+                found = true;
+            }
+            else
+            {
+                Channels_[i]->Mute();
+            }
         }
     }
 }

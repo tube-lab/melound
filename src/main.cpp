@@ -41,9 +41,9 @@ auto main() -> int
 
     for (int i = 0; i < driver->Channels(); ++i)
     {
+        driver->Open(i);
         auto p = driver->Activate(i, false);
-        p.wait();
-        std::cout << "Channel " << i << " has been enabled\n";
+        std::cout << "Channel " << i << " has been enabled: " << p->get() << "\n";
     }
 
     auto op = driver->Enqueue(1, *FromFile("./sound.wav"));
@@ -53,13 +53,12 @@ auto main() -> int
         return 1;
     }
 
-    driver->Resume(1);
     driver->Deactivate(0);
     driver->Deactivate(1);
 
     op->wait();
 
-    std::cout << "Fine, deactivated: " << driver->Working() << "\n";
+    std::cout << "Fine, deactivated: " << driver->Powered() << "\n";
     std::cout << "Played music\n";
     return 0;
 }

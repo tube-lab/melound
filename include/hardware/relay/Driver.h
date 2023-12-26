@@ -1,6 +1,8 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
+#include "utils/CustomConstructor.h"
+
 #include <memory>
 #include <optional>
 #include <atomic>
@@ -22,7 +24,7 @@ namespace ml::relay
      * The relay utilizes DTR line of RS232 port.
      * Fully exception and thread safe.
      */
-    class Driver
+    class Driver : public CustomConstructor
     {
         int PortFd_;
         std::string Port_;
@@ -50,10 +52,6 @@ namespace ml::relay
         auto Path() const noexcept -> std::string_view;
 
     private:
-        Driver(int fd, std::string port) noexcept;
-        Driver(const Driver&) noexcept = delete;
-        Driver(Driver&&) noexcept = delete;
-
         void UpdatePort(int add, int remove) noexcept;
     };
 }
