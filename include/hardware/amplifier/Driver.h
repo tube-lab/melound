@@ -1,124 +1,78 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "Config.h"
 #include "ChannelState.h"
 #include "DriverError.h"
 
-#include "hardware/audio/ChannelsMixer.h"
-#include "hardware/relay/Driver.h"
+#include "hardware/audio/Track.h"
 
+#include "utils/CustomConstructor.h"
 #include "utils/Time.h"
 
-#include <functional>
-#include <algorithm>
-#include <optional>
-#include <expected>
-#include <vector>
-#include <memory>
 #include <future>
+#include <vector>
 #include <thread>
-#include <list>
-#include <map>
+#include <expected>
+#include <sys/types.h>
 
 namespace ml::amplifier
 {
     /**
-     * @brief A driver for a lamp amplifier.
-     * @safety Fully exception and thread safe.
+     * @brief Abstract driver for the amplifier.
+     * @safety Fully exceptional and thread safe.
      *
-     * Features:
-     * -
-     * - When the channel is disabled - it is queue is emptied.
-     * - All channels related function fail if the channel isn't active.
-     *
-     * Timings:
-     * - The main idea is that amplifier is working while at least 1 channel is active, but immediately shuts down when no channels are active.
-     * - If the amplifier has been turned off less than "cool-down duration"(ms) ago, then it the channel will be activated instantly.
-     * - If the task is so urgent that the loses from the bad sound quality are negligible then the amplifier can start to play immediately.
+     * Defines a universal API for managing different amplifier.
+     * Takes care about internal states and the async mainloop.
      */
     class Driver : public CustomConstructor
     {
-        struct ChannelInfo
-        {
-            ChannelState State;
-            bool UrgentActivation;
-            std::vector<std::promise<bool>> ActivationListeners;
-        };
+        time_t StartupDuration_;
+        time_t ShutdownDuration_;
+        time_t TickInterval_;
 
-        Config Config_;
-        std::shared_ptr<relay::Driver> Relay_;
-        std::shared_ptr<audio::ChannelsMixer> Mixer_;
+        std::atomic<bool> Active_;
 
-        // Device state
-        bool Powered_ {};
-        std::pair<time_t, time_t> PreviousPoweredInterval_ {};
-        std::pair<time_t, time_t> PoweredInterval_ {};
-        std::vector<ChannelInfo> Channels_;
-        mutable std::recursive_mutex StateLock_;
+        std::vector<ChannelState> Channels_;
+        std::mutex ChannelsLock_;
 
-        std::jthread Controller_;
+        std::jthread Mainloop_;
 
     public:
-        /** Creates a new driver based on the provided configuration. Acquires a port and an audio-device. */
-        static auto Create(const Config& config) noexcept -> std::shared_ptr<Driver>;
+        /** Appends the track to the channel' queue, requires the device to be active. */
+        virtual auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, DriverError> = 0;
 
-        /** Temporary pauses the playback in all channels, doesn't turn off the device. */
-        void Pause() noexcept;
+        /** Skips the first track in the channel' queue, requires the device to be active. */
+        virtual auto Skip(uint channel) noexcept -> std::expected<time_t, DriverError> = 0;
 
-        /** Resumes a previously paused playback. */
-        void Resume() noexcept;
+        /** Clears the channel' queue, requires the device to be active. */
+        virtual auto Clear(uint channel) noexcept -> std::expected<time_t, DriverError> = 0;
 
-        /** Prepares a channel, so it may be activated. */
-        void Open(uint channel) noexcept;
+        /** Estimates how much playback time is left for the particular channel, requires the device to be active. */
+        virtual auto DurationLeft(uint channel) const noexcept -> std::expected<time_t, DriverError> = 0;
 
-        /** Deactivates and closes a channel. */
-        void Close(uint channel) noexcept;
+        /** Notifies the driver that channels state has been updated. */
+        void NotifyAboutChannelsChange(const std::vector<ChannelState>& channels) noexcept;
 
-        /** Activates the channel, required for the access to the channel. Fails if the channel state != opened. */
-        auto Activate(uint channel, bool urgent) noexcept -> std::optional<std::future<bool>>;
+        /** Returns whether the driver is active. */
+        auto Active() const noexcept -> bool;
 
-        /** Disables the channel and empties its queue. Fails if the channel state != active. */
-        auto Deactivate(uint channel) noexcept -> bool;
+        /** Returns how much time the device may take in order to start up in the worst case. */
+        auto StartupDuration() const noexcept -> time_t;
 
-        /** Appends the audio track to the particular active channel. Doesn't clear the pause state. */
-        auto Enqueue(uint channel, const audio::Track& audio) noexcept -> std::expected<std::future<void>, EnqueueError>;
+        /** Returns how much time the device may take in order to shut down in the worst case. */
+        auto ShutdownDuration() const noexcept -> time_t;
 
-        /** Empties the channel. Channel' playback will be stopped immediately. Doesn't pause the channel. */
-        auto Clear(uint channel) noexcept -> bool;
+    protected:
+        /** Creates the driver with some basic properties set. */
+        Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval) noexcept;
 
-        /** Drops the first track in the channel' queue and immediately moves to the next one. */
-        auto Skip(uint channel) noexcept -> bool;
+        /** Updates the device state, always called in the separate thread. Returns whether the device is active now. */
+        virtual bool Tick(time_t time, time_t dt, const std::vector<ChannelState>& channels) noexcept = 0;
 
-        /** Determines for how long the channel will continue to play. */
-        auto DurationLeft(uint channel) const noexcept -> std::optional<time_t>;
-
-        /** Determines the duration of the longest channel. Returns nothing if no channels are active. */
-        auto DurationLeft() const noexcept -> std::optional<time_t>;
-
-        /** Returns whenever the channel is active. */
-        auto State(uint channel) const noexcept -> ChannelState;
-
-        /** Returns the number of amplifier' channels. */
-        auto Channels() const noexcept -> size_t;
-
-        /** Returns whenever the amplifier is working. */
-        auto Powered() const noexcept -> bool;
-
-        /** Returns the longest duration that the activation of channel may take. */
-        auto ActivationDuration() const noexcept -> time_t;
+        /** Ensure that the device is active. Designed to be used with transform/and_then functions. */
+        auto ShouldBeActive() const noexcept -> std::expected<void, DriverError>;
 
     private:
-        void ControllerLoop(const std::stop_token& token) noexcept;
-        auto Warm(time_t time, bool urgent) const noexcept -> bool;
-
-        void FulfillActivationListeners(uint channel, bool result) noexcept;
-
-        void EnablePowerRelay() noexcept;
-        void DisablePowerRelay() noexcept;
-
-        void EnableMixerChannel(uint i) noexcept;
-        void PutMixerChannelOnHold(uint i) noexcept;
-        void DisableMixerChannel(uint i) noexcept;
+        void Mainloop(const std::stop_token& token) noexcept;
     };
 }

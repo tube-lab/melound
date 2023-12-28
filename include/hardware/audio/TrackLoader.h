@@ -5,7 +5,10 @@
 
 namespace ml::audio
 {
-    /** A bunch of audio parsers. Directly works with the data from the memory. */
+    /**
+     * @brief A bunch of audio parsers. Directly works with the data from the memory.
+     * @safety Fully exceptional and thread safe.
+     */
     class TrackLoader
     {
     public:

@@ -10,7 +10,8 @@
 namespace ml::audio
 {
     /**
-     * @brief A parsed audio data.
+     * @brief A parsed audio file loaded to the memory.
+     * @safety Fully exceptional and thread safe.
      */
     class Track
     {

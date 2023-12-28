@@ -6,12 +6,13 @@ namespace ml
     class CustomConstructor
     {
     public:
-        CustomConstructor() = default;
         CustomConstructor(const CustomConstructor&) = delete;
         CustomConstructor(CustomConstructor&&) = delete;
-
         virtual ~CustomConstructor() = default;
 
         auto operator=(const CustomConstructor&) noexcept -> CustomConstructor = delete;
+
+    protected:
+        CustomConstructor() = default;
     };
 }

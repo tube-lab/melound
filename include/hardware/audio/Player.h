@@ -20,13 +20,13 @@ namespace ml::audio
      * @brief A simple audio thread-safe player.
      * @safety Fully exception and thread safe.
      *
-     * Main features:
+     * Features:
      * - Built on top of SDL audio subsystem.
      * - Provides pause/resume methods.
      * - Provides mute/unmute methods.
      * - Supports queue, so it is fully suitable for VoIP applications.
      *
-     * Important features:
+     * Warnings:
      * - The player is paused by default.
      */
     class Player : public CustomConstructor

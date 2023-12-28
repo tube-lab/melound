@@ -4,186 +4,194 @@ using namespace ml::speaker;
 
 auto Driver::Create(const Config& config) noexcept -> std::shared_ptr<Driver>
 {
-    // Initialize subsystems
-    auto relay = relay::Driver::Create(config.PowerControlPort);
-    if (!relay)
+    // Convert channels list into the map of states
+    std::unordered_map<std::string, ChannelInfo> channels;
+    for (uint i = 0; i < config.Channels.size(); ++i)
     {
-        return nullptr;
-    }
-
-    auto mixer = audio::ChannelsMixer::Create(config.Channels.size(), config.AudioDevice);
-    if (!mixer)
-    {
-        return nullptr;
-    }
-
-    // Convert channels list into the mapping
-    std::unordered_map<std::string, uint> mapping;
-    for (uint64_t i = 0; i < config.Channels.size(); ++i)
-    {
-        mapping[config.Channels[i]] = i;
+        channels[config.Channels[i]] = { .Index = i };
     }
 
     // Create the driver
     auto driver = std::make_shared<Driver>();
-    driver->Config_ = config;
-    driver->Relay_ = relay;
-    driver->Mixer_ = mixer;
-    driver->ChannelsMapping_ = mapping;
+    driver->Amplifier_ = config.Controller;
+    driver->Channels_ = channels;
 
     return driver;
 }
 
 void Driver::Pause() noexcept
 {
-    Mixer_->Pause();
+    std::lock_guard _ { StateLock_ };
+    Paused_ = true;
 }
 
 void Driver::Resume() noexcept
 {
-    Mixer_->Resume();
+    std::lock_guard _ { StateLock_ };
+    Paused_ = false;
 }
 
-auto Driver::Open(const std::string& channel) noexcept -> std::optional<DriverError>
+auto Driver::Open(const std::string& channel) noexcept -> Result<>
 {
-    auto id = FindChannelId(channel);
-    if (id == UINT_MAX)
-    {
-        return DE_NotFound;
-    }
 
+}
+
+auto Driver::Close(const std::string& channel) noexcept -> Result<>
+{
+
+}
+
+auto Driver::Prolong(const std::string& channel) noexcept -> Result<>
+{
+
+}
+
+auto Driver::Activate(const std::string& channel, bool urgent) noexcept -> Result<std::future<void>>
+{
+
+}
+
+auto Driver::Deactivate(const std::string &channel) noexcept -> Result<std::future<void>>
+{
+    return ml::speaker::Driver::Result<std::future<void>>();
+}
+
+auto Driver::Enqueue(const std::string& channel, const audio::Track& audio) noexcept -> Result<std::future<void>>
+{
     std::lock_guard _ { StateLock_ };
+    return RequireActive(channel).and_then([&](const ChannelInfo* info) -> Result<std::future<void>>
     {
-        if (Channels_[id].State == C_Closed)
+        auto promise = Amplifier_->Enqueue(info->Index, audio);
+        if (!promise)
         {
-            Channels_[id].State = C_Opened;
-            Channels_[id].ExpiresAt = TimeNow() + 1000;
-            return std::nullopt;
+            return std::unexpected { DE_BadTrack };
         }
 
-        return DE_AlreadyOpened;
-    }
+        return std::move(*promise);
+    });
 }
 
-auto Driver::Close(const std::string& channel) noexcept -> bool
+auto Driver::Clear(const std::string &channel) noexcept -> Result<>
 {
-    auto id = FindChannelId(channel);
-    if (id == UINT_MAX)
-    {
-        return false;
-    }
-
-    Close(id);
-    return true;
-}
-
-auto Driver::Prolong(const std::string& channel) noexcept -> std::optional<DriverError>
-{
-    auto id = FindChannelId(channel);
-    if (id == UINT_MAX)
-    {
-        return DE_NotFound;
-    }
-
     std::lock_guard _ { StateLock_ };
+    return RequireActive(channel).transform([&](const ChannelInfo* info)
     {
-        if (Channels_[id].State != C_Closed)
+        Amplifier_->Clear(info->Index);
+    });
+}
+
+auto Driver::Skip(const std::string& channel) noexcept -> Result<>
+{
+    std::lock_guard _ { StateLock_ };
+    return RequireActive(channel).transform([&](const ChannelInfo* info)
+    {
+        Amplifier_->Skip(info->Index);
+    });
+}
+
+auto Driver::DurationLeft(const std::string& channel) const noexcept -> Result<time_t>
+{
+    std::lock_guard _ { StateLock_ };
+    return RequireActive(channel).transform([&](const ChannelInfo* info)
+    {
+        return Amplifier_->DurationLeft(info->Index);
+    });
+}
+
+auto Driver::DurationLeft() const noexcept -> Result<time_t>
+{
+    std::lock_guard _ { StateLock_ };
+
+    time_t best = LONG_MAX;
+    for (const auto& [name, info] : Channels_)
+    {
+        if (info.State == C_Active)
         {
-            Channels_[id].ExpiresAt = TimeNow() + 1000;
-            return std::nullopt;
+            best = std::max(best == LONG_MAX ? 0 : best, Amplifier_->DurationLeft(info.Index));
+        }
+    }
+
+    return best == LONG_MAX ? std::unexpected { DE_NotActive } : Result<time_t> { best };
+}
+
+auto Driver::State(const std::string &channel) const noexcept -> Result<ChannelState>
+{
+    std::lock_guard _ { StateLock_ };
+    return RequireExisting(channel).transform([&](const ChannelInfo* info)
+    {
+        return info->State;
+    });
+}
+
+auto Driver::Paused(const std::string &channel) const noexcept -> bool
+{
+    std::lock_guard _ { StateLock_ };
+    return Paused_;
+}
+
+auto Driver::ActivationDuration() const noexcept -> time_t
+{
+    return Amplifier_->StartupDuration();
+}
+
+auto Driver::DeactivationDuration() const noexcept -> time_t
+{
+    return Amplifier_->ShutdownDuration();
+}
+
+void Driver::Mainloop(const std::stop_token& token) noexcept
+{
+    while (!token.stop_requested())
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds { 20 });
+        std::lock_guard _ { StateLock_ };
+        {
+            auto time = TimeNow();
+            std::vector<ChannelState> states;
+
+            for (const auto& [name, info] : Channels_)
+            {
+                states.emplace_back(info.State);
+            }
+
+            Amplifier_->Tick(time, Paused_, states);
+
+            for (auto& [name, info] : Channels_)
+            {
+                if (!Amplifier_->Active() && info.State == C_PendingDeactivation)
+                {
+                    info.State = C_Opened;
+                }
+
+                if (Amplifier_->Active() && info.State == C_PendingActivation)
+                {
+                    info.State = C_Active;
+                }
+            }
+        }
+    }
+}
+
+auto Driver::RequireActive(const std::string& channel) const noexcept -> Result<const ChannelInfo*>
+{
+    return RequireExisting(channel).and_then([&](const ChannelInfo* info) -> Result<const ChannelInfo*>
+    {
+        if (info->State != C_Active)
+        {
+            return std::unexpected { DE_NotActive };
         }
 
-        return DE_Closed;
-    }
+        return info;
+    });
 }
 
-auto Driver::Enqueue(const std::string& channel, const audio::Track& audio) noexcept -> std::expected<std::future<void>, DriverError>
+auto Driver::RequireExisting(const std::string &channel) const noexcept -> Result<const ChannelInfo*>
 {
-    auto id = FindChannelId(channel);
-    if (id == UINT_MAX)
+    auto it = Channels_.find(channel);
+    if (it == Channels_.end())
     {
         return std::unexpected { DE_NotFound };
     }
 
-    if (Channels_[id].State != C_Active)
-    {
-        return std::unexpected { DE_NotActive };
-    }
-
-    auto promise = Mixer_->Enqueue(id, audio);
-    if (!promise)
-    {
-        return std::unexpected { DE_BadTrack };
-    }
-
-    return std::move(*promise);
-}
-
-auto Driver::Clear(const std::string &channel) noexcept -> std::optional<ClearError>
-{
-    return std::optional<ClearError>();
-}
-
-auto Driver::Skip(const std::string &channel) noexcept -> std::optional<SkipError>
-{
-    return std::optional<SkipError>();
-}
-
-void Driver::ControlLoop(const std::stop_token &token) noexcept
-{
-
-}
-
-void Driver::CloseExpiredChannels(time_t time) noexcept
-{
-    std::lock_guard _ { StateLock_ };
-    for (auto& [name, id] : ChannelsMapping_)
-    {
-        if (time >= Channels_[id].ExpiresAt)
-        {
-            Close(name);
-        }
-    }
-}
-
-void Driver::Close(uint id) noexcept
-{
-    std::lock_guard _ { StateLock_ };
-    {
-        Deactivate(id);
-        Channels_[id].State = C_Closed;
-        Channels_[id].ExpiresAt = 0;
-    }
-}
-
-auto Driver::Deactivate(uint id) noexcept -> bool
-{
-    std::lock_guard _ { StateLock_ };
-    {
-        if (Channels_[id].State == C_PendingActivation || Channels_[id].State == C_Active)
-        {
-            Channels_[id].State = C_Opened;
-            FulfillActivationListeners(id, false);
-            return true;
-        }
-
-        return false;
-    }
-}
-
-auto Driver::FindChannelId(const std::string& channel) noexcept -> uint
-{
-    return ChannelsMapping_.contains(channel) ? ChannelsMapping_[channel] : UINT_MAX;
-}
-
-void Driver::FulfillActivationListeners(uint id, bool result) noexcept
-{
-    std::lock_guard _ { StateLock_ };
-    {
-        for (auto& listener : Channels_[id].ActivationListeners)
-        {
-            listener.set_value(result);
-        }
-        Channels_[id].ActivationListeners.clear();
-    }
+    return &it->second;
 }

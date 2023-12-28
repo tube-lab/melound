@@ -1,13 +1,21 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
+#include "ChannelState.h"
+
+#include "hardware/audio/Track.h"
+#include "utils/CustomConstructor.h"
+
+#include <future>
+#include <vector>
+#include <thread>
+#include <sys/types.h>
+
 namespace ml::amplifier
 {
-    /** An error list for Driver::Enqueue. */
-    enum EnqueueError
+    enum DriverError
     {
-        EE_Ok = 0, ///< No errors happened.
-        EE_BadTrack = 1, ///< The track can't be properly resampled to fit to the player format.
-        EE_NotActive = 2, ///< The channel isn't active..
+        DE_Inactive = 0,
+        DE_BadTrack = 1
     };
 }

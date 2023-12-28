@@ -12,14 +12,19 @@
 namespace ml::audio
 {
     /**
-     * @brief The simple mixer
+     * @brief The simple mixer.
+     * @safety Fully exceptional and thread safe.
+     *
+     * Features:
      * - Allows to overlay multiple channels.
      * - Each particular channel has the same capabilities as a Player instance.
      * - Overlay system based on priorities. When the channel with id=k is enabled all channels which id's < k are muted.
      *   This works even if channel with id=k is muted, so always pay attention to this fact.
      *   Note that even when the channel is disabled it continues to play.
      * - Do not support any kind of the channel blending.
-     * Note, that each channel is muted by default. This allows you to upload all the necessary audio into it.
+     *
+     * Warnings:
+     * - Each channel is muted by default. This allows you to upload all the necessary audio into it.
      */
     class ChannelsMixer
     {
@@ -66,7 +71,7 @@ namespace ml::audio
         /** Unmutes the channel. */
         void Unmute(uint channel) noexcept;
 
-        /** Returns whenever the channel is enabled. */
+        /** Returns whether the channel is enabled. */
         auto Enabled(uint channel) const noexcept -> bool;
 
         /** Returns that pause state of the channel. */

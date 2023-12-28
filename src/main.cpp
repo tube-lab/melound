@@ -1,4 +1,4 @@
-#include "hardware/amplifier/Driver.h"
+#include "hardware/speaker/Driver.h"
 #include "hardware/audio/TrackLoader.h"
 
 #include <fstream>
@@ -17,7 +17,6 @@
 
 using namespace ml;
 using namespace audio;
-using namespace amplifier;
 using namespace std::chrono;
 
 auto FromFile(const std::string& path)
