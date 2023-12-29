@@ -2,15 +2,28 @@
 #include "hardware/amplifier/Driver.h"
 using namespace ml::amplifier;
 
-void Driver::NotifyAboutChannelsChange(const std::vector<ChannelState>& channels) noexcept
+auto Driver::NotifyAboutChannelsChange(const std::vector<ChannelState>& channels) noexcept -> bool
 {
     std::lock_guard _ { ChannelsLock_ };
-    Channels_ = channels;
+    {
+        if (ChannelsNum_ != channels.size())
+        {
+            return false;
+        }
+
+        Channels_ = channels;
+        return true;
+    }
 }
 
 auto Driver::Active() const noexcept -> bool
 {
     return Active_;
+}
+
+auto Driver::Channels() const noexcept -> size_t
+{
+    return ChannelsNum_;
 }
 
 auto Driver::StartupDuration() const noexcept -> time_t
@@ -23,8 +36,9 @@ auto Driver::ShutdownDuration() const noexcept -> time_t
     return ShutdownDuration_;
 }
 
-Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval) noexcept
-    : StartupDuration_(startupDuration), ShutdownDuration_(shutdownDuration), TickInterval_(tickInterval)
+Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channelsNum) noexcept
+    : StartupDuration_(startupDuration), ShutdownDuration_(shutdownDuration),
+      TickInterval_(tickInterval), ChannelsNum_(channelsNum)
 {
     Mainloop_ = std::jthread { [&](const auto& token)
     {
@@ -46,11 +60,11 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
     }
 }
 
-auto Driver::ShouldBeActive() const noexcept -> std::expected<void, DriverError>
+auto Driver::ShouldBeActive() const noexcept -> std::expected<void, ActionError>
 {
     if (!Active_)
     {
-        return std::unexpected { DE_Inactive };
+        return std::unexpected { AE_Inactive };
     }
 
     return {};

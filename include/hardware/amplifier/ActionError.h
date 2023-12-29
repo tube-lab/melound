@@ -13,9 +13,9 @@
 
 namespace ml::amplifier
 {
-    enum DriverError
+    enum ActionError
     {
-        DE_Inactive = 0,
-        DE_BadTrack = 1
+        AE_Inactive = 0,
+        AE_BadTrack = 1
     };
 }

@@ -29,9 +29,10 @@ add_executable(melound src/main.cpp
         src/hardware/audio/Utils.cpp
         include/hardware/amplifier/Driver.h
         include/hardware/amplifier/ChannelState.h
-        include/hardware/amplifier/DriverError.h
+        include/hardware/amplifier/ActionError.h
         src/hardware/amplifier/Driver.cpp
         include/hardware/amplifier/LampDriver.h
+        src/hardware/speaker/Driver.cpp
 )
 
 # Add SDL2 library

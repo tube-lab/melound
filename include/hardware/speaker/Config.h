@@ -1,7 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "amplifier/Amplifier.h"
+#include "hardware/amplifier/Driver.h"
 
 #include <string>
 #include <memory>
@@ -12,7 +12,7 @@ namespace ml::speaker
     struct Config
     {
         /** The speaker amplifier subsystem implementation. */
-        std::shared_ptr<Amplifier> Controller;
+        std::shared_ptr<amplifier::Driver> Amplifier;
 
         /** The speaker channels sorted by priority. */
         std::vector<std::string> Channels {};

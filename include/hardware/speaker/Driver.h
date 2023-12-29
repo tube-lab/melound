@@ -5,8 +5,6 @@
 #include "DriverError.h"
 #include "ChannelState.h"
 
-#include "hardware/audio/Track.h"
-
 #include "utils/Time.h"
 #include "utils/CustomConstructor.h"
 
@@ -23,24 +21,25 @@ namespace ml::speaker
      * @brief A driver for any speaker.
      * @safety Fully exception and thread safe.
      *
-     * All the hardware management logic is moved to the
+     * Serves as an abstraction layer over the amplifier driver providing all the necessary features for the app.
+     * Adds prolongation concept and more convenient channels state management..
      *
      * Sessions mechanism:
      * - The user opens the channel
      * - The user prolongs the channel each 1000(ms) otherwise the channel will be closed.
      *
      * Tracks enqueuing mechanism:
-     * - The user activates the channel when it actually wants to play any tracks ( may take some time ).
+     * - The user activates the opened channel when he actually wants to play any tracks ( takes some time ).
      * - The user enqueues tracks.
      * - These tracks are played.
-     * - The user releases the channel notifying the speaker that no tracks will be played ( may take some time ).
+     * - The user releases the channel signalling to the speaker that no tracks will be played ( takes some time ).
      *
      * Main features:
      * - All channels related function fail if the channel isn't active.
      */
     class Driver : public CustomConstructor
     {
-        struct ChannelInfo
+        struct Channel
         {
             uint Index;
             ChannelState State;
@@ -48,9 +47,9 @@ namespace ml::speaker
             time_t ExpiresAt;
         };
 
-        std::shared_ptr<Amplifier> Amplifier_;
+        std::shared_ptr<amplifier::Driver> Amplifier_;
 
-        std::unordered_map<std::string, ChannelInfo> Channels_;
+        std::unordered_map<std::string, Channel> Channels_;
         std::unordered_multimap<ChannelState, std::promise<void>> Listeners_;
         mutable std::recursive_mutex StateLock_;
 
@@ -103,8 +102,10 @@ namespace ml::speaker
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
-        auto RequireActive(const std::string& channel) const noexcept -> Result<const ChannelInfo*>;
-        auto RequireExisting(const std::string& channel) const noexcept -> Result<const ChannelInfo*>;
-        static void FireChannelListeners(ChannelInfo& channel, ChannelState state) noexcept;
+        auto RequireActive(const std::string& channel) const noexcept -> Result<const Channel*>;
+        auto RequireExisting(const std::string& channel) const noexcept -> Result<const Channel*>;
+
+        void SetChannelState(const std::string& channel, ChannelState state) noexcept;
+        void SendChannelsToAmplifier() noexcept;
     };
 }
