@@ -2,18 +2,46 @@
 #include "hardware/amplifier/Driver.h"
 using namespace ml::amplifier;
 
-auto Driver::NotifyAboutChannelsChange(const std::vector<ChannelState>& channels) noexcept -> bool
+auto Driver::Activate() noexcept -> std::future<void>
 {
-    std::lock_guard _ { ChannelsLock_ };
+    std::lock_guard _ {DeviceStateLock_ };
     {
-        if (ChannelsNum_ != channels.size())
-        {
-            return false;
-        }
+        DesiredActive_ = true;
+        ActivationListeners_.emplace_back();
+        return ActivationListeners_.back().get_future();
+    }
+}
 
-        Channels_ = channels;
+auto Driver::Deactivate() noexcept -> std::future<void>
+{
+    std::lock_guard _ {DeviceStateLock_ };
+    {
+        DesiredActive_ = false;
+        DeactivationListeners_.emplace_back();
+        return DeactivationListeners_.back().get_future();
+    }
+}
+
+auto Driver::Open(uint channel) noexcept -> bool
+{
+    if (!OpenedChannels_[channel])
+    {
+        DoOpen(channel);
         return true;
     }
+
+    return false;
+}
+
+auto Driver::Close(uint channel) noexcept -> bool
+{
+    if (OpenedChannels_[channel])
+    {
+        DoClose(channel);
+        return true;
+    }
+
+    return false;
 }
 
 auto Driver::Active() const noexcept -> bool
@@ -21,9 +49,14 @@ auto Driver::Active() const noexcept -> bool
     return Active_;
 }
 
+auto Driver::Opened(uint channel) const noexcept -> bool
+{
+    return OpenedChannels_[channel];
+}
+
 auto Driver::Channels() const noexcept -> size_t
 {
-    return ChannelsNum_;
+    return Channels_;
 }
 
 auto Driver::StartupDuration() const noexcept -> time_t
@@ -36,10 +69,11 @@ auto Driver::ShutdownDuration() const noexcept -> time_t
     return ShutdownDuration_;
 }
 
-Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channelsNum) noexcept
+Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channels) noexcept
     : StartupDuration_(startupDuration), ShutdownDuration_(shutdownDuration),
-      TickInterval_(tickInterval), ChannelsNum_(channelsNum)
+      TickInterval_(tickInterval), Channels_(channels)
 {
+    OpenedChannels_ = std::vector<std::atomic<bool>>(channels);
     Mainloop_ = std::jthread { [&](const auto& token)
     {
         Mainloop(token);
@@ -48,23 +82,58 @@ Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInter
 
 void Driver::Mainloop(const std::stop_token& token) noexcept
 {
-    auto lTime = TimeNow();
+    auto startTime = TimeNow();
     while (!token.stop_requested())
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds { TickInterval_ });
-        std::lock_guard _ { ChannelsLock_ };
-
         auto time = TimeNow();
-        Active_ = Tick(time, time - lTime, Channels_);
-        lTime = time;
+        std::unique_lock _ { DeviceStateLock_ };
+
+        // Resolve Activate/Deactivate calls when the device is already active/inactive.
+        FulfillListeners(Active_ ? ActivationListeners_ : DeactivationListeners_);
+
+        if (Active_ != DesiredActive_)
+        {
+            if (DesiredActive_ && DoActivation(time, time - startTime))
+            {
+                Active_ = true;
+                FulfillListeners(ActivationListeners_);
+            }
+
+            if (!DesiredActive_ && DoDeactivation(time, time - startTime))
+            {
+                Active_ = false;
+                FulfillListeners(DeactivationListeners_);
+            }
+        }
+        else
+        {
+            startTime = time;
+        }
+
+        _.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds { TickInterval_ });
     }
 }
 
-auto Driver::ShouldBeActive() const noexcept -> std::expected<void, ActionError>
+void Driver::FulfillListeners(std::vector<std::promise<void>>& listeners) noexcept
+{
+    for (auto& promise : listeners)
+    {
+        promise.set_value();
+    }
+    listeners.clear();
+}
+
+auto Driver::ShouldBeActive(uint channel) const noexcept -> std::expected<void, ActionError>
 {
     if (!Active_)
     {
         return std::unexpected { AE_Inactive };
+    }
+
+    if (!OpenedChannels_[channel])
+    {
+        return std::unexpected { AE_ChannelClosed };
     }
 
     return {};

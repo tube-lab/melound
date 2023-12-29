@@ -13,7 +13,7 @@ namespace ml::audio
 {
     /**
      * @brief The simple mixer.
-     * @safety Fully exceptional and thread safe.
+     * @safety Fully exception and thread safe.
      *
      * Features:
      * - Allows to overlay multiple channels.
@@ -26,7 +26,7 @@ namespace ml::audio
      * Warnings:
      * - Each channel is muted by default. This allows you to upload all the necessary audio into it.
      */
-    class ChannelsMixer
+    class ChannelsMixer : public CustomConstructor
     {
         std::vector<std::shared_ptr<Player>> Channels_ {};
 
@@ -93,10 +93,6 @@ namespace ml::audio
         auto Channels() const noexcept -> size_t;
 
     private:
-        ChannelsMixer(const std::vector<std::shared_ptr<Player>>& channels) noexcept;
-        ChannelsMixer(const ChannelsMixer&) noexcept = delete;
-        ChannelsMixer(ChannelsMixer&&) noexcept = delete;
-
         void UpdateChannel(size_t channel, std::optional<bool> enabled, std::optional<bool> muted) noexcept;
         void SelectChannel() noexcept;
     };

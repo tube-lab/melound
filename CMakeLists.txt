@@ -15,7 +15,7 @@ add_executable(melound src/main.cpp
         include/hardware/audio/ChannelsMixer.h
 
         include/hardware/speaker/Driver.h
-        include/hardware/speaker/DriverError.h
+        include/hardware/speaker/ActionError.h
 
         include/utils/Time.h
         include/utils/CustomConstructor.h
@@ -28,7 +28,6 @@ add_executable(melound src/main.cpp
         src/hardware/audio/Player.cpp
         src/hardware/audio/Utils.cpp
         include/hardware/amplifier/Driver.h
-        include/hardware/amplifier/ChannelState.h
         include/hardware/amplifier/ActionError.h
         src/hardware/amplifier/Driver.cpp
         include/hardware/amplifier/LampDriver.h

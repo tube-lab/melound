@@ -2,17 +2,18 @@
 #pragma once
 
 #include "Config.h"
-#include "DriverError.h"
+#include "ActionError.h"
 #include "ChannelState.h"
 
 #include "utils/Time.h"
 #include "utils/CustomConstructor.h"
 
 #include <unordered_map>
-#include <future>
 #include <algorithm>
 #include <expected>
+#include <future>
 #include <thread>
+#include <ranges>
 #include <list>
 
 namespace ml::speaker
@@ -22,7 +23,7 @@ namespace ml::speaker
      * @safety Fully exception and thread safe.
      *
      * Serves as an abstraction layer over the amplifier driver providing all the necessary features for the app.
-     * Adds prolongation concept and more convenient channels state management..
+     * Adds prolongation concept and more convenient channels state management.
      *
      * Sessions mechanism:
      * - The user opens the channel
@@ -45,18 +46,18 @@ namespace ml::speaker
             ChannelState State;
             ChannelState DesiredState;
             time_t ExpiresAt;
+            std::unordered_multimap<ChannelState, std::promise<void>> Listeners;
         };
 
         std::shared_ptr<amplifier::Driver> Amplifier_;
 
         std::unordered_map<std::string, Channel> Channels_;
-        std::unordered_multimap<ChannelState, std::promise<void>> Listeners_;
-        mutable std::recursive_mutex StateLock_;
+        mutable std::recursive_mutex ChannelsLock_;
 
         std::jthread Mainloop_;
 
     public:
-        template <typename T = void> using Result = std::expected<T, DriverError>;
+        template <typename T = void> using Result = std::expected<T, ActionError>;
 
         /** Creates a new driver based on the provided configuration. Acquires a port and an audio-device. */
         static auto Create(const Config& config) noexcept -> std::shared_ptr<Driver>;
@@ -105,7 +106,11 @@ namespace ml::speaker
         auto RequireActive(const std::string& channel) const noexcept -> Result<const Channel*>;
         auto RequireExisting(const std::string& channel) const noexcept -> Result<const Channel*>;
 
-        void SetChannelState(const std::string& channel, ChannelState state) noexcept;
+        auto SetDesiredChannelState(const std::string& channel, ChannelState state) noexcept -> Result<>;
+        void FulfillChannelStateListeners(const std::string& channel);
         void SendChannelsToAmplifier() noexcept;
+
+        static auto ToAmplifierChannelState(ChannelState state) noexcept -> amplifier::ChannelState;
+        static auto TranslateError(amplifier::ActionError err) noexcept -> ActionError;
     };
 }

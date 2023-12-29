@@ -18,6 +18,7 @@
 using namespace ml;
 using namespace audio;
 using namespace std::chrono;
+using namespace speaker;
 
 auto FromFile(const std::string& path)
 {

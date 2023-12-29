@@ -15,7 +15,8 @@ namespace ml::amplifier
 {
     enum ActionError
     {
-        AE_Inactive = 0,
-        AE_BadTrack = 1
+        AE_ChannelClosed = 0,
+        AE_Inactive = 1,
+        AE_BadTrack = 2
     };
 }

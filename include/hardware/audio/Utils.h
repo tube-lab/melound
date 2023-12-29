@@ -9,7 +9,7 @@ namespace ml::audio
 {
     /**
      * @brief Small utils for common audio processing tasks.
-     * @safety Fully exceptional and thread safe.
+     * @safety Fully exception and thread safe.
      */
     class Utils
     {

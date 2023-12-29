@@ -32,7 +32,7 @@ namespace ml::amplifier
         }
 
     protected:
-        bool Tick(time_t time, time_t dt, const std::vector<ChannelState> &channels) noexcept override
+        bool DoActivation(time_t time, time_t dt, const std::vector<ChannelState> &channels) noexcept override
         {
             return false;
         }

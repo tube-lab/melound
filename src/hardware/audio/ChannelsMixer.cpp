@@ -16,10 +16,15 @@ auto ChannelsMixer::Create(uint channels, const std::optional<std::string> &audi
 
         player->Resume();
     }
-    
-    return std::shared_ptr<ChannelsMixer> {
-        new ChannelsMixer {players }
-    };
+
+    auto player = std::make_shared<ChannelsMixer>();
+    player->Channels_ = players;
+    player->EnabledChannels_.resize(channels, false);
+    player->MutedChannels_.resize(channels, false);
+
+    player->SelectChannel(); // reset everything to the initial state
+
+    return player;
 }
 
 void ChannelsMixer::Pause() noexcept
@@ -107,9 +112,9 @@ auto ChannelsMixer::DurationLeft(uint channel) const noexcept -> time_t
 auto ChannelsMixer::DurationLeft() const noexcept -> time_t
 {
     time_t longest = 0;
-    for (size_t i = 0; i < Channels_.size(); ++i)
+    for (const auto& channel : Channels_)
     {
-        longest = std::max(longest, Channels_[i]->DurationLeft());
+        longest = std::max(longest, channel->DurationLeft());
     }
 
     return longest;
@@ -128,18 +133,9 @@ auto ChannelsMixer::Channels() const noexcept -> size_t
     return Channels_.size();
 }
 
-ChannelsMixer::ChannelsMixer(const std::vector<std::shared_ptr<Player>>& channels) noexcept
-    : Channels_(channels)
-{
-    EnabledChannels_.resize(channels.size(), false);
-    MutedChannels_.resize(channels.size(), false);
-
-    SelectChannel(); // reset everything to the initial state
-}
-
 void ChannelsMixer::UpdateChannel(size_t channel, std::optional<bool> enabled, std::optional<bool> muted) noexcept
 {
-    std::lock_guard _ {ChannelsStatesLock_ };
+    std::lock_guard _ { ChannelsStatesLock_ };
     {
         if (enabled) EnabledChannels_[channel] = *enabled;
         if (muted) MutedChannels_[channel] = *muted;

@@ -1,7 +1,6 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "ChannelState.h"
 #include "ActionError.h"
 
 #include "hardware/audio/Track.h"
@@ -19,50 +18,65 @@ namespace ml::amplifier
 {
     /**
      * @brief Abstract driver for the amplifier.
-     * @safety Fully exceptional and thread safe.
+     * @safety Fully exception and thread safe.
      *
      * Defines a universal API for managing different amplifier.
      * Takes care about internal states and the async mainloop.
-     * To get understanding of the channels management take a look on ChannelState docs.
      *
      * Requirements for concrete implementations:
      * 1. When the channel with index=i is opened all the channels where index < i should be muted.
      * 2. All the actions MUST NOT be invocable when the device is inactive.
      * 3. The driver MUST NOT care about the runtime errors or the hardware disconnections.
      * 4. The driver MUST initialize/de-initialize the hardware in response to the channels states changes.
+     * 5. The driver MUST be completely exception and thread safe.
      */
     class Driver : public CustomConstructor
     {
         time_t StartupDuration_;
         time_t ShutdownDuration_;
         time_t TickInterval_;
-        size_t ChannelsNum_;
+        size_t Channels_;
 
-        std::atomic<bool> Active_;
+        std::vector<std::atomic<bool>> OpenedChannels_;
 
-        std::vector<ChannelState> Channels_;
-        std::mutex ChannelsLock_;
+        bool Active_;
+        bool DesiredActive_;
+        std::vector<std::promise<void>> ActivationListeners_;
+        std::vector<std::promise<void>> DeactivationListeners_;
+        std::mutex DeviceStateLock_;
 
         std::jthread Mainloop_;
 
     public:
-        /** Appends the track to the channel' queue, requires the device to be active. */
+        /** Appends the track to the channel' queue, requires the device and channel to be active. */
         virtual auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError> = 0;
 
-        /** Skips the first track in the channel' queue, requires the device to be active. */
-        virtual auto Skip(uint channel) noexcept -> std::expected<time_t, ActionError> = 0;
+        /** Skips the first track in the channel' queue, requires the device to be active and the channel to be opened. */
+        virtual auto Skip(uint channel) noexcept -> std::expected<void, ActionError> = 0;
 
-        /** Clears the channel' queue, requires the device to be active. */
-        virtual auto Clear(uint channel) noexcept -> std::expected<time_t, ActionError> = 0;
+        /** Clears the channel' queue, requires the device to be active and the channel to be opened. */
+        virtual auto Clear(uint channel) noexcept -> std::expected<void, ActionError> = 0;
 
         /** Estimates how much playback time is left for the particular channel, requires the device to be active. */
         virtual auto DurationLeft(uint channel) const noexcept -> std::expected<time_t, ActionError> = 0;
 
-        /** Notifies the driver that channels state has been updated. Fails if the size of vector != to the channels number. */
-        auto NotifyAboutChannelsChange(const std::vector<ChannelState>& channels) noexcept -> bool;
+        /** Requests the activation of the amplifier, so it can play sound. */
+        auto Activate() noexcept -> std::future<void>;
 
-        /** Returns whether the driver is active. */
+        /** Requests the deactivation of the amplifier, after completion the amplifier won't be able to play sound. */
+        auto Deactivate() noexcept -> std::future<void>;
+
+        /** Reserves the channel for playback, fails if the channel has already been opened. */
+        auto Open(uint channel) noexcept -> bool;
+
+        /** Releases the channel, fails if the channel isn't open. */
+        auto Close(uint channel) noexcept -> bool;
+
+        /** Returns whether the device is active. */
         auto Active() const noexcept -> bool;
+
+        /** Returns whether the channel is opened. */
+        auto Opened(uint channel) const noexcept -> bool;
 
         /** Returns the number of amplifier' channels. */
         auto Channels() const noexcept -> size_t;
@@ -75,15 +89,25 @@ namespace ml::amplifier
 
     protected:
         /** Creates the driver with some essential properties set. */
-        Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channelsNum) noexcept;
+        Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channels) noexcept;
 
-        /** Updates the device state, always called in the separate thread. Returns whether the device is active now. */
-        virtual bool Tick(time_t time, time_t dt, const std::vector<ChannelState>& channels) noexcept = 0;
+        /** Opens the channel, invoked synchronously. */
+        virtual void DoOpen(uint channel) noexcept = 0;
 
-        /** Ensure that the device is active. Designed to be used with transform/and_then functions. */
-        auto ShouldBeActive() const noexcept -> std::expected<void, ActionError>;
+        /** Closes the channel, invoked synchronously. */
+        virtual void DoClose(uint channel) noexcept = 0;
+
+        /** Activates the device, always called in the separate thread. Returns true when the device has been activated. */
+        virtual bool DoActivation(time_t time, time_t elapsed) noexcept = 0;
+
+        /** De-activates the device, always called in the separate thread. Returns true when the device is no longer active. */
+        virtual bool DoDeactivation(time_t time, time_t elapsed) noexcept = 0;
+
+        /** Ensures that the device is active. Designed to be used with transform/and_then functions. */
+        auto ShouldBeActive(uint channel) const noexcept -> std::expected<void, ActionError>;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
+        static void FulfillListeners(std::vector<std::promise<void>>& listeners) noexcept;
     };
 }
