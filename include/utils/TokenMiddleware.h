@@ -5,7 +5,10 @@
 
 namespace ml
 {
-    /** Basic middleware for permitting access to API by constant token. */
+    /**
+     * @brief Basic middleware for permitting access to API by constant token.
+     * @safety Fully exception and thread safe.
+     */
     class TokenMiddleware
     {
         std::string Token_;

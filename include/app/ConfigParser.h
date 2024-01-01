@@ -12,7 +12,10 @@
 
 namespace ml::app
 {
-    /** A parser for the user created config.  */
+    /**
+     * @brief A parser for the user created config.
+     * @safety Fully exception and thread safe.
+     */
     class ConfigParser
     {
     public:

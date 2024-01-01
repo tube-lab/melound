@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ActionError.h"
+#include "Config.h"
 
 #include "hardware/audio/Track.h"
 
@@ -25,16 +26,18 @@ namespace ml::amplifier
      *
      * Requirements for concrete implementations:
      * 1. When the channel with index=i is opened all the channels where index < i should be muted.
-     * 2. All the actions MUST NOT be invocable when the device is inactive.
-     * 3. The driver MUST NOT care about the runtime errors or the hardware disconnections.
-     * 4. The driver MUST initialize/de-initialize the hardware in response to the channels states changes.
-     * 5. The driver MUST be completely exception and thread safe.
-     * 6. The driver MUST start up/shut down as fast as possible when this is required urgently.
+     * 2. When the channel is closed its playback queue should be immediately cleared.
+     * 4. All the actions MUST NOT be invocable when the device is inactive.
+     * 5. The driver MUST NOT care about the runtime errors or the hardware disconnections.
+     * 6. The driver MUST be completely exception and thread safe.
+     * 7. The driver MUST start up/shut down as fast as possible when this is required urgently.
      */
     class Driver : public CustomConstructor
     {
         time_t StartupDuration_;
         time_t ShutdownDuration_;
+        time_t UrgentStartupDuration_;
+        time_t UrgentShutdownDuration_;
         time_t TickInterval_;
         size_t Channels_;
 
@@ -84,14 +87,14 @@ namespace ml::amplifier
         auto Channels() const noexcept -> size_t;
 
         /** Returns how much time the device may take in order to start up in the worst case. */
-        auto StartupDuration() const noexcept -> time_t;
+        auto StartupDuration(bool urgently) const noexcept -> time_t;
 
         /** Returns how much time the device may take in order to shut down in the worst case. */
-        auto ShutdownDuration() const noexcept -> time_t;
+        auto ShutdownDuration(bool urgently) const noexcept -> time_t;
 
     protected:
         /** Creates the driver with some essential properties set. */
-        Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channels) noexcept;
+        Driver(const Config& config) noexcept;
 
         /** Appends the track to the channel' queue, invoked only if the device and channel are active. */
         virtual auto DoEnqueue(uint channel, const audio::Track& track) -> std::optional<std::future<void>> = 0;

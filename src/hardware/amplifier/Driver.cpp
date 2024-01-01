@@ -105,21 +105,22 @@ auto Driver::Channels() const noexcept -> size_t
     return Channels_;
 }
 
-auto Driver::StartupDuration() const noexcept -> time_t
+auto Driver::StartupDuration(bool urgently) const noexcept -> time_t
 {
-    return StartupDuration_;
+    return urgently ? UrgentStartupDuration_ : StartupDuration_;
 }
 
-auto Driver::ShutdownDuration() const noexcept -> time_t
+auto Driver::ShutdownDuration(bool urgently) const noexcept -> time_t
 {
-    return ShutdownDuration_;
+    return urgently ? UrgentShutdownDuration_ : ShutdownDuration_;
 }
 
-Driver::Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channels) noexcept
-    : StartupDuration_(startupDuration), ShutdownDuration_(shutdownDuration),
-      TickInterval_(tickInterval), Channels_(channels)
+Driver::Driver(const Config& config) noexcept
+    : StartupDuration_(config.StartupDuration), ShutdownDuration_(config.ShutdownDuration),
+      UrgentStartupDuration_(config.UrgentStartupDuration), UrgentShutdownDuration_(config.UrgentShutdownDuration),
+      TickInterval_(config.TickInterval), Channels_(config.Channels)
 {
-    OpenedChannels_ = std::vector<std::atomic<bool>>(channels);
+    OpenedChannels_ = std::vector<std::atomic<bool>>(config.Channels);
     Mainloop_ = std::jthread { [&](const auto& token)
     {
         Mainloop(token);

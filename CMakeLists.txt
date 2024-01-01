@@ -6,6 +6,15 @@ include_directories(lib)
 set(CMAKE_CXX_STANDARD 23)
 
 add_executable(melound src/main.cpp
+        include/app/Config.h
+        include/app/WebServer.h
+        include/app/ConfigParser.h
+
+        include/hardware/amplifier/Driver.h
+        include/hardware/amplifier/ActionError.h
+        include/hardware/amplifier/LampDriver.h
+        include/hardware/amplifier/LampConfig.h
+
         include/hardware/relay/Driver.h
 
         include/hardware/audio/Track.h
@@ -19,6 +28,13 @@ add_executable(melound src/main.cpp
 
         include/utils/Time.h
         include/utils/CustomConstructor.h
+        include/utils/TokenMiddleware.h
+
+        src/app/WebServer.cpp
+        src/app/ConfigParser.cpp
+
+        src/hardware/amplifier/Driver.cpp
+        src/hardware/amplifier/LampDriver.cpp
 
         src/hardware/relay/Driver.cpp
 
@@ -27,21 +43,11 @@ add_executable(melound src/main.cpp
         src/hardware/audio/ChannelsMixer.cpp
         src/hardware/audio/Player.cpp
         src/hardware/audio/Utils.cpp
-        include/hardware/amplifier/Driver.h
-        include/hardware/amplifier/ActionError.h
-        src/hardware/amplifier/Driver.cpp
-        include/hardware/amplifier/LampDriver.h
-        src/hardware/speaker/Driver.cpp
-        src/hardware/amplifier/LampDriver.cpp
-        include/app/Config.h
-        include/app/WebServer.h
-        src/app/WebServer.cpp
-        include/app/ConfigParser.h
-        src/app/ConfigParser.cpp
 
-        include/hardware/amplifier/LampConfig.h
-        include/utils/TokenMiddleware.h
+        src/hardware/speaker/Driver.cpp
+
         src/utils/TokenMiddleware.cpp
+        include/hardware/amplifier/Config.h
 )
 
 # Add SDL2 library
