@@ -43,15 +43,16 @@ namespace ml::speaker
         struct Channel
         {
             uint Index;
+            std::string Name;
             ChannelState State;
             ChannelState DesiredState;
             time_t ExpiresAt;
-            std::unordered_multimap<ChannelState, std::promise<void>> Listeners;
+            std::unordered_map<ChannelState, std::vector<std::promise<void>>> Listeners;
         };
 
         std::shared_ptr<amplifier::Driver> Amplifier_;
 
-        std::unordered_map<std::string, Channel> Channels_;
+        std::vector<Channel> Channels_;
         mutable std::recursive_mutex ChannelsLock_;
 
         std::jthread Mainloop_;
@@ -72,10 +73,10 @@ namespace ml::speaker
         auto Prolong(const std::string& channel) noexcept -> Result<>;
 
         /** Activates the channel, required for the playback throughout the channel. */
-        auto Activate(const std::string& channel, bool urgent) noexcept -> Result<std::future<void>>;
+        auto Activate(const std::string& channel, bool urgently) noexcept -> Result<std::future<void>>;
 
         /** Notifies the driver that no music will be played over this channel in the nearest future. Clears the queue. */
-        auto Deactivate(const std::string& channel) noexcept -> Result<std::future<void>>;
+        auto Deactivate(const std::string& channel, bool urgently) noexcept -> Result<std::future<void>>;
 
         /** Appends the audio track to the particular active channel. */
         auto Enqueue(const std::string& channel, const audio::Track& audio) noexcept -> Result<std::future<void>>;
@@ -103,14 +104,9 @@ namespace ml::speaker
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
-        auto RequireActive(const std::string& channel) const noexcept -> Result<const Channel*>;
-        auto RequireExisting(const std::string& channel) const noexcept -> Result<const Channel*>;
-
-        auto SetDesiredChannelState(const std::string& channel, ChannelState state) noexcept -> Result<>;
-        void FulfillChannelStateListeners(const std::string& channel);
-        void SendChannelsToAmplifier() noexcept;
-
-        static auto ToAmplifierChannelState(ChannelState state) noexcept -> amplifier::ChannelState;
-        static auto TranslateError(amplifier::ActionError err) noexcept -> ActionError;
+        void SetState(uint channel, ChannelState state) noexcept;
+        auto CountActiveChannels() const noexcept -> uint;
+        auto InsertStateListener(uint channel, ChannelState state) const noexcept -> std::future<void>;
+        auto RequireExistingChannel(const std::string& channel) const noexcept -> Result<uint>;
     };
 }

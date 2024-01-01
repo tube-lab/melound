@@ -32,6 +32,16 @@ add_executable(melound src/main.cpp
         src/hardware/amplifier/Driver.cpp
         include/hardware/amplifier/LampDriver.h
         src/hardware/speaker/Driver.cpp
+        src/hardware/amplifier/LampDriver.cpp
+        include/app/Config.h
+        include/app/WebServer.h
+        src/app/WebServer.cpp
+        include/app/ConfigParser.h
+        src/app/ConfigParser.cpp
+
+        include/hardware/amplifier/LampConfig.h
+        include/utils/TokenMiddleware.h
+        src/utils/TokenMiddleware.cpp
 )
 
 # Add SDL2 library

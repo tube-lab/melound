@@ -5,9 +5,10 @@ namespace ml::speaker
 {
     enum ActionError
     {
-        AE_Inactive = 0,
-        AE_BadTrack = 1,
-        DE_NotFound = 2,
-        DE_AlreadyOpened = 3,
+        AE_ChannelOpened = 0,
+        AE_ChannelClosed = 1,
+        AE_ChannelInactive = 2,
+        AE_IncompatibleTrack = 3,
+        AE_ChannelNotFound = 4,
     };
 }

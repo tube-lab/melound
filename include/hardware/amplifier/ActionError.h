@@ -1,8 +1,6 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "ChannelState.h"
-
 #include "hardware/audio/Track.h"
 #include "utils/CustomConstructor.h"
 
@@ -13,10 +11,11 @@
 
 namespace ml::amplifier
 {
+    /** */
     enum ActionError
     {
-        AE_ChannelClosed = 0,
-        AE_Inactive = 1,
-        AE_BadTrack = 2
+        AE_ChannelClosed = 0, ///<
+        AE_Inactive = 1, ///<
+        AE_IncompatibleTrack = 2 ///<
     };
 }

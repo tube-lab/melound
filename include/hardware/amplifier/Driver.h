@@ -29,6 +29,7 @@ namespace ml::amplifier
      * 3. The driver MUST NOT care about the runtime errors or the hardware disconnections.
      * 4. The driver MUST initialize/de-initialize the hardware in response to the channels states changes.
      * 5. The driver MUST be completely exception and thread safe.
+     * 6. The driver MUST start up/shut down as fast as possible when this is required urgently.
      */
     class Driver : public CustomConstructor
     {
@@ -39,32 +40,33 @@ namespace ml::amplifier
 
         std::vector<std::atomic<bool>> OpenedChannels_;
 
-        bool Active_;
-        bool DesiredActive_;
+        bool Working_ {};
+        bool DesiredWorking_ {};
+        bool UrgentStateChange_ {};
         std::vector<std::promise<void>> ActivationListeners_;
         std::vector<std::promise<void>> DeactivationListeners_;
-        std::mutex DeviceStateLock_;
+        mutable std::recursive_mutex DeviceStateLock_;
 
         std::jthread Mainloop_;
 
     public:
-        /** Appends the track to the channel' queue, requires the device and channel to be active. */
-        virtual auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError> = 0;
+        /** Appends the track to the channel' queue, requires the device and channel is active. */
+        auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError>;
 
-        /** Skips the first track in the channel' queue, requires the device to be active and the channel to be opened. */
-        virtual auto Skip(uint channel) noexcept -> std::expected<void, ActionError> = 0;
+        /** Skips the first track in the channel' queue, requires the device to be active and the channel is opened. */
+        auto Skip(uint channel) noexcept -> std::expected<void, ActionError>;
 
-        /** Clears the channel' queue, requires the device to be active and the channel to be opened. */
-        virtual auto Clear(uint channel) noexcept -> std::expected<void, ActionError> = 0;
+        /** Clears the channel' queue, requires the device to be active and the channel is opened. */
+        auto Clear(uint channel) noexcept -> std::expected<void, ActionError>;
 
-        /** Estimates how much playback time is left for the particular channel, requires the device to be active. */
-        virtual auto DurationLeft(uint channel) const noexcept -> std::expected<time_t, ActionError> = 0;
+        /** Estimates how much playback time is left for the particular channel, requires the device to be active and the channel is opened. */
+        auto DurationLeft(uint channel) const noexcept -> std::expected<time_t, ActionError>;
 
         /** Requests the activation of the amplifier, so it can play sound. */
-        auto Activate() noexcept -> std::future<void>;
+        auto Startup(bool urgently) noexcept -> std::future<void>;
 
         /** Requests the deactivation of the amplifier, after completion the amplifier won't be able to play sound. */
-        auto Deactivate() noexcept -> std::future<void>;
+        auto Shutdown(bool urgently) noexcept -> std::future<void>;
 
         /** Reserves the channel for playback, fails if the channel has already been opened. */
         auto Open(uint channel) noexcept -> bool;
@@ -72,8 +74,8 @@ namespace ml::amplifier
         /** Releases the channel, fails if the channel isn't open. */
         auto Close(uint channel) noexcept -> bool;
 
-        /** Returns whether the device is active. */
-        auto Active() const noexcept -> bool;
+        /** Returns whether the device is turned on. */
+        auto Working() const noexcept -> bool;
 
         /** Returns whether the channel is opened. */
         auto Opened(uint channel) const noexcept -> bool;
@@ -91,6 +93,18 @@ namespace ml::amplifier
         /** Creates the driver with some essential properties set. */
         Driver(time_t startupDuration, time_t shutdownDuration, time_t tickInterval, size_t channels) noexcept;
 
+        /** Appends the track to the channel' queue, invoked only if the device and channel are active. */
+        virtual auto DoEnqueue(uint channel, const audio::Track& track) -> std::optional<std::future<void>> = 0;
+
+        /** Skips the first track in the channel' queue, invoked only of the device to be active and the channel is opened. */
+        virtual void DoSkip(uint channel) noexcept = 0;
+
+        /** Clears the channel' queue, invoked only of the device to be active and the channel is opened. */
+        virtual void DoClear(uint channel) noexcept = 0;
+
+        /** Estimates how much playback time is left for the particular channel, invoked only of the device to be active and the channel is opened. */
+        virtual auto DoDurationLeft(uint channel) const noexcept -> time_t = 0;
+
         /** Opens the channel, invoked synchronously. */
         virtual void DoOpen(uint channel) noexcept = 0;
 
@@ -98,16 +112,14 @@ namespace ml::amplifier
         virtual void DoClose(uint channel) noexcept = 0;
 
         /** Activates the device, always called in the separate thread. Returns true when the device has been activated. */
-        virtual bool DoActivation(time_t time, time_t elapsed) noexcept = 0;
+        virtual bool DoActivation(time_t time, time_t elapsed, bool urgent) noexcept = 0;
 
         /** De-activates the device, always called in the separate thread. Returns true when the device is no longer active. */
-        virtual bool DoDeactivation(time_t time, time_t elapsed) noexcept = 0;
-
-        /** Ensures that the device is active. Designed to be used with transform/and_then functions. */
-        auto ShouldBeActive(uint channel) const noexcept -> std::expected<void, ActionError>;
+        virtual bool DoDeactivation(time_t time, time_t elapsed, bool urgent) noexcept = 0;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
+        auto ActionWrapper(uint channel) const noexcept -> std::expected<void, ActionError>;
         static void FulfillListeners(std::vector<std::promise<void>>& listeners) noexcept;
     };
 }

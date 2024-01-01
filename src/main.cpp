@@ -1,24 +1,21 @@
-#include "hardware/speaker/Driver.h"
-#include "hardware/audio/TrackLoader.h"
+#include "app/WebServer.h"
 
 #include <fstream>
 #include <iostream>
 
 // POST {sink-id}/open
 // POST {sink-id}/prolong
-// POST {sink-id}/grab
-// POST {sink-id}/release
+// POST {sink-id}/activate
+// POST {sink-id}/deactivate
 // POST {sink-id}/play + data
-// POST {sink-id}/stop
+// POST {sink-id}/clear
 
-// GET {sink-id}/buffer-duration
-// GET {sink-id}/grabbing-time
-// GET {sink-id}/timeout
+// GET {sink-id}/duration-left
+// GET {sink-id}/activation-duration
+// GET {sink-id}/deactivation-duration
 
 using namespace ml;
 using namespace audio;
-using namespace std::chrono;
-using namespace speaker;
 
 auto FromFile(const std::string& path)
 {
@@ -29,36 +26,6 @@ auto FromFile(const std::string& path)
 
 auto main() -> int
 {
-    auto driver = Driver::Create(Config {
-        .WarmingDuration = 5000,
-        .CoolingDuration = 1000,
-        .PowerControlPort = "/usb/",
-        .AudioDevice = std::nullopt,
-        .Channels = 2,
-    });
-
-    std::cout << "Start\n";
-
-    for (int i = 0; i < driver->Channels(); ++i)
-    {
-        driver->Open(i);
-        auto p = driver->Activate(i, false);
-        std::cout << "Channel " << i << " has been enabled: " << p->get() << "\n";
-    }
-
-    auto op = driver->Enqueue(1, *FromFile("./sound.wav"));
-    if (!op)
-    {
-        std::cerr << "Failed to enqueue: " << op.error() << '\n';
-        return 1;
-    }
-
-    driver->Deactivate(0);
-    driver->Deactivate(1);
-
-    op->wait();
-
-    std::cout << "Fine, deactivated: " << driver->Powered() << "\n";
-    std::cout << "Played music\n";
-    return 0;
+    auto result = ml::app::WebServer::Run("./config.ini", 8080);
+    return result;
 }

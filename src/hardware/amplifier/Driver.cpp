@@ -2,21 +2,67 @@
 #include "hardware/amplifier/Driver.h"
 using namespace ml::amplifier;
 
-auto Driver::Activate() noexcept -> std::future<void>
+auto Driver::Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError>
 {
-    std::lock_guard _ {DeviceStateLock_ };
+    std::lock_guard _ { DeviceStateLock_ };
+    return ActionWrapper(channel).and_then([&]() -> std::expected<std::future<void>, ActionError>
     {
-        DesiredActive_ = true;
+        auto p = DoEnqueue(channel, track);
+        if (!p)
+        {
+            return std::unexpected {AE_IncompatibleTrack };
+        }
+
+        return std::move(*p);
+    });
+}
+
+auto Driver::Skip(uint channel) noexcept -> std::expected<void, ActionError>
+{
+    std::lock_guard _ { DeviceStateLock_ };
+    return ActionWrapper(channel).and_then([&]() -> std::expected<void, ActionError>
+    {
+        DoSkip(channel);
+        return {};
+    });
+}
+
+auto Driver::Clear(uint channel) noexcept -> std::expected<void, ActionError>
+{
+    std::lock_guard _ { DeviceStateLock_ };
+    return ActionWrapper(channel).and_then([&]() -> std::expected<void, ActionError>
+    {
+        DoClear(channel);
+        return {};
+    });
+}
+
+auto Driver::DurationLeft(uint channel) const noexcept -> std::expected<time_t, ActionError>
+{
+    std::lock_guard _ { DeviceStateLock_ };
+    return ActionWrapper(channel).and_then([&]() -> std::expected<time_t, ActionError>
+    {
+        return DoDurationLeft(channel);
+    });
+}
+
+auto Driver::Startup(bool urgently) noexcept -> std::future<void>
+{
+    std::lock_guard _ { DeviceStateLock_ };
+    {
+        DesiredWorking_ = true;
+        UrgentStateChange_ = urgently;
         ActivationListeners_.emplace_back();
         return ActivationListeners_.back().get_future();
     }
 }
 
-auto Driver::Deactivate() noexcept -> std::future<void>
+auto Driver::Shutdown(bool urgently) noexcept -> std::future<void>
 {
     std::lock_guard _ {DeviceStateLock_ };
     {
-        DesiredActive_ = false;
+        DesiredWorking_ = false;
+        UrgentStateChange_ = urgently;
         DeactivationListeners_.emplace_back();
         return DeactivationListeners_.back().get_future();
     }
@@ -44,9 +90,9 @@ auto Driver::Close(uint channel) noexcept -> bool
     return false;
 }
 
-auto Driver::Active() const noexcept -> bool
+auto Driver::Working() const noexcept -> bool
 {
-    return Active_;
+    return Working_;
 }
 
 auto Driver::Opened(uint channel) const noexcept -> bool
@@ -85,23 +131,23 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
     auto startTime = TimeNow();
     while (!token.stop_requested())
     {
-        auto time = TimeNow();
         std::unique_lock _ { DeviceStateLock_ };
+        auto time = TimeNow();
 
-        // Resolve Activate/Deactivate calls when the device is already active/inactive.
-        FulfillListeners(Active_ ? ActivationListeners_ : DeactivationListeners_);
+        // Resolve Startup/Shutdown calls when the device is already active/inactive.
+        FulfillListeners(Working_ ? ActivationListeners_ : DeactivationListeners_);
 
-        if (Active_ != DesiredActive_)
+        if (Working_ != DesiredWorking_)
         {
-            if (DesiredActive_ && DoActivation(time, time - startTime))
+            if (DesiredWorking_ && DoActivation(time, time - startTime, UrgentStateChange_))
             {
-                Active_ = true;
+                Working_ = true;
                 FulfillListeners(ActivationListeners_);
             }
 
-            if (!DesiredActive_ && DoDeactivation(time, time - startTime))
+            if (!DesiredWorking_ && DoDeactivation(time, time - startTime, UrgentStateChange_))
             {
-                Active_ = false;
+                Working_ = false;
                 FulfillListeners(DeactivationListeners_);
             }
         }
@@ -115,6 +161,16 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
     }
 }
 
+auto Driver::ActionWrapper(uint channel) const noexcept -> std::expected<void, ActionError>
+{
+    std::lock_guard _ { DeviceStateLock_ };
+    {
+        if (!Working_) return std::unexpected {AE_Inactive };
+        if (!OpenedChannels_[channel]) return std::unexpected { AE_ChannelClosed };
+        return {};
+    }
+}
+
 void Driver::FulfillListeners(std::vector<std::promise<void>>& listeners) noexcept
 {
     for (auto& promise : listeners)
@@ -122,19 +178,4 @@ void Driver::FulfillListeners(std::vector<std::promise<void>>& listeners) noexce
         promise.set_value();
     }
     listeners.clear();
-}
-
-auto Driver::ShouldBeActive(uint channel) const noexcept -> std::expected<void, ActionError>
-{
-    if (!Active_)
-    {
-        return std::unexpected { AE_Inactive };
-    }
-
-    if (!OpenedChannels_[channel])
-    {
-        return std::unexpected { AE_ChannelClosed };
-    }
-
-    return {};
 }
