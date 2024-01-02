@@ -24,7 +24,7 @@ namespace ml::audio
      * - Do not support any kind of the channel blending.
      *
      * Warnings:
-     * - Each channel is muted by default. This allows you to upload all the necessary audio into it.
+     * - Each channel is muted by default. This allows you to upload all the necessary tracks into it.
      */
     class ChannelsMixer : public CustomConstructor
     {

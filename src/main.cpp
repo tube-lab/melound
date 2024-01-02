@@ -11,8 +11,8 @@
 // POST {sink-id}/deactivate
 // POST {sink-id}/play + data
 // POST {sink-id}/clear
-// POST {sink-id}/state
 
+// GET {sink-id}/state
 // GET {sink-id}/duration-left
 // GET {sink-id}/activation-duration
 // GET {sink-id}/deactivation-duration

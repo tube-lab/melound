@@ -70,28 +70,28 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
     });
 
     // Activate/deactivate channel
-    CROW_POST_ROUTE(app, "/<string>/activate")([&](const std::string& channel)
+    CROW_POST_ROUTE(app, "/<string>/activate")([&](const crow::request& req, const std::string& channel)
     {
-        auto r = speaker->Activate(channel, Urgent(crow::request()));
+        auto r = speaker->Activate(channel, Urgent(req));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
-    CROW_POST_ROUTE(app, "/<string>/deactivate")([&](const std::string& channel)
+    CROW_POST_ROUTE(app, "/<string>/deactivate")([&](const crow::request& req, const std::string& channel)
     {
-        auto r = speaker->Deactivate(channel, Urgent(crow::request()));
+        auto r = speaker->Deactivate(channel, Urgent(req));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
     // Playback management
-    CROW_POST_ROUTE(app, "/<string>/play")([&](const std::string& channel)
+    CROW_POST_ROUTE(app, "/<string>/play")([&](const crow::request& req, const std::string& channel)
     {
-        std::string raw = crow::utility::base64decode(crow::request().body);
+        std::string raw = crow::utility::base64decode(req.body);
         std::vector<char> decoded { raw.begin(), raw.end() };
 
         auto track = audio::TrackLoader::FromWav(decoded);
-        if (track)
+        if (!track)
         {
-            return crow::response { 400, "TrackIsNotWav" };
+            return crow::response { 400, "400 Track Not Wav" };
         }
 
         auto r = speaker->Enqueue(channel, *track);
@@ -117,14 +117,14 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
         return r ? crow::response { "Ok" } : BindError(r.error());
     });
 
-    CROW_ROUTE(app, "/activation-duration")([&]()
+    CROW_ROUTE(app, "/activation-duration")([&](const crow::request& req)
     {
-        return speaker->ActivationDuration(Urgent(crow::request()));
+        return speaker->ActivationDuration(Urgent(req));
     });
 
-    CROW_ROUTE(app, "/deactivation-duration")([&]()
+    CROW_ROUTE(app, "/deactivation-duration")([&](const crow::request& req)
     {
-        return speaker->DeactivationDuration(Urgent(crow::request()));
+        return speaker->DeactivationDuration(Urgent(req));
     });
 
     CROW_LOG_INFO << "Created the web-server. Running it on the port " << port;
@@ -142,11 +142,11 @@ auto WebServer::LongPolling(const std::future<void>& f) noexcept -> crow::respon
 
 auto WebServer::BindError(speaker::ActionError error) noexcept -> crow::response
 {
-    if (error == speaker::AE_ChannelOpened) return crow::response { 400, "400 Channel opened" };
-    if (error == speaker::AE_ChannelClosed) return crow::response { 400, "400 Channel closed" };
-    if (error == speaker::AE_ChannelInactive) return crow::response { 400, "400 Channel inactive" };
-    if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "400 Incompatible track" };
-    if (error == speaker::AE_ChannelNotFound) return crow::response {400, "400 Channel not found" };
+    if (error == speaker::AE_ChannelOpened) return crow::response { 400, "400 Channel Opened" };
+    if (error == speaker::AE_ChannelClosed) return crow::response { 400, "400 Channel Closed" };
+    if (error == speaker::AE_ChannelInactive) return crow::response { 400, "400 Channel Inactive" };
+    if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "400 Incompatible Track" };
+    if (error == speaker::AE_ChannelNotFound) return crow::response { 404, "404 Channel Not Found" };
     std::unreachable();
 }
 
@@ -155,9 +155,9 @@ auto WebServer::BindState(speaker::ChannelState state) noexcept -> crow::respons
     if (state == speaker::CS_Closed) return crow::response { "Closed" };
     if (state == speaker::CS_Opened) return crow::response { "Opened" };
     if (state == speaker::CS_Active) return crow::response { "Active" };
-    if (state == speaker::CS_PendingTermination) return crow::response { "Pending termination" };
-    if (state == speaker::CS_PendingActivation) return crow::response { "Pending activation" };
-    if (state == speaker::CS_PendingDeactivation) return crow::response { "Pending deactivation" };
+    if (state == speaker::CS_PendingTermination) return crow::response { "Pending Termination" };
+    if (state == speaker::CS_PendingActivation) return crow::response { "Pending Activation" };
+    if (state == speaker::CS_PendingDeactivation) return crow::response { "Pending Deactivation" };
     std::unreachable();
 }
 

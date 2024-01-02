@@ -16,6 +16,7 @@ auto Driver::Create(const Config& config) noexcept -> std::shared_ptr<Driver>
     driver->Amplifier_ = config.Amplifier;
     driver->ChannelsMap_ = channelsMap;
     driver->Channels_ = std::vector<Channel>(config.Channels.size());
+    driver->Mainloop_ = std::jthread { [&](const auto& token) { driver->Mainloop(token); } };
 
     return driver;
 }
@@ -77,7 +78,7 @@ auto Driver::Activate(const std::string& channel, bool urgently) noexcept -> Res
         }
 
         // Otherwise try to use the code
-        Amplifier_->StartUp(true);
+        Amplifier_->StartUp(urgently);
         Channels_[index].State = CS_PendingActivation;
 
         Channels_[index].ActivationListeners.emplace_back();
