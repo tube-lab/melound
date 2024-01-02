@@ -11,10 +11,12 @@
 #include <unordered_map>
 #include <algorithm>
 #include <expected>
+#include <utility>
+#include <numeric>
 #include <future>
 #include <thread>
 #include <ranges>
-#include <list>
+#include <map>
 
 namespace ml::speaker
 {
@@ -42,15 +44,14 @@ namespace ml::speaker
     {
         struct Channel
         {
-            uint Index;
-            std::string Name;
             ChannelState State;
-            ChannelState DesiredState;
-            time_t ExpiresAt;
-            std::unordered_map<ChannelState, std::vector<std::promise<void>>> Listeners;
+            std::optional<time_t> ExpiresAt;
+            std::vector<std::promise<void>> ActivationListeners;
+            std::vector<std::promise<void>> DeactivationListeners;
         };
 
         std::shared_ptr<amplifier::Driver> Amplifier_;
+        std::map<std::string, uint> ChannelsMap_;
 
         std::vector<Channel> Channels_;
         mutable std::recursive_mutex ChannelsLock_;
@@ -65,9 +66,6 @@ namespace ml::speaker
 
         /** Prepares a channel, so it may be activated. */
         auto Open(const std::string& channel) noexcept -> Result<>;
-
-        /** Manually deactivates and closes a channel. */
-        auto Close(const std::string& channel) noexcept -> Result<>;
 
         /** Prolongs a channel, so it won't be automatically closed for the next 1000(ms). */
         auto Prolong(const std::string& channel) noexcept -> Result<>;
@@ -104,9 +102,10 @@ namespace ml::speaker
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
-        void SetState(uint channel, ChannelState state) noexcept;
-        auto CountActiveChannels() const noexcept -> uint;
-        auto InsertStateListener(uint channel, ChannelState state) const noexcept -> std::future<void>;
-        auto RequireExistingChannel(const std::string& channel) const noexcept -> Result<uint>;
+        auto MapToIndex(const std::string& channel) const noexcept -> Result<uint>;
+        auto DeactivateChannel(uint channel, bool urgently, bool terminate) noexcept -> std::future<void>;
+        static auto MakeFulfilledFuture() noexcept -> std::future<void>;
+        static void FulfillListeners(std::vector<std::promise<void>>& list) noexcept;
+        static auto BindDriverError(amplifier::ActionError err) noexcept -> ActionError;
     };
 }

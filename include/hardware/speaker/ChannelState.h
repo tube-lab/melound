@@ -8,10 +8,8 @@ namespace ml::speaker
         CS_Closed = 0,
         CS_Opened = 1,
         CS_Active = 2,
-        CS_PendingShutdown = 3,
-        CS_PendingActivation = 4,
+        CS_PendingActivation = 3,
+        CS_PendingTermination = 4,
         CS_PendingDeactivation = 5,
-        CS_PendingUrgentActivation = 6,
-        CS_PendingUrgentDeactivation = 7
     };
 }

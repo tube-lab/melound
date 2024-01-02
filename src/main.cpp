@@ -21,15 +21,8 @@ using namespace ml;
 using namespace audio;
 using namespace ml::amplifier;
 
-auto FromFile(const std::string& path)
-{
-    std::ifstream ifs { path };
-    std::vector<char> data = { std::istreambuf_iterator<char> { ifs }, std::istreambuf_iterator<char> {} };
-    return TrackLoader::FromWav(data);
-}
-
 auto main() -> int
 {
-    auto result = ml::app::WebServer::Run("./config.ini", 8080);
+    auto result = ml::app::WebServer::Run("./speaker.cfg", 8080);
     return result;
 }

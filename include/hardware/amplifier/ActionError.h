@@ -11,11 +11,11 @@
 
 namespace ml::amplifier
 {
-    /** */
+    /**  */
     enum ActionError
     {
-        AE_ChannelClosed = 0, ///<
-        AE_Inactive = 1, ///<
+        AE_Shutdown = 0, ///<
+        AE_ChannelClosed = 1, ///<
         AE_IncompatibleTrack = 2 ///<
     };
 }

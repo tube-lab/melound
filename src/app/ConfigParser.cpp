@@ -19,9 +19,9 @@ auto ConfigParser::FromIni(const std::string& data) -> std::optional<Config>
     cfg.WarmingDuration = ini.GetLongValue("general", "warming-duration");
     cfg.CoolingDuration = ini.GetLongValue("general", "cooling-duration");
     cfg.PowerPort = ini.GetValue("general", "power-port");
-    cfg.AudioDevice = ini.GetValue("general", "audio-device");
+    cfg.AudioDevice = ini.GetValue("general", "audio-device", "default");
 
-    cfg.AudioDevice = cfg.AudioDevice->empty() ? std::nullopt : std::optional { cfg.AudioDevice };
+    cfg.AudioDevice = cfg.AudioDevice == "default" ? std::nullopt : std::optional { cfg.AudioDevice };
 
     // Parse all the sink sections
     CSimpleIniA::TNamesDepend sections;
@@ -30,7 +30,7 @@ auto ConfigParser::FromIni(const std::string& data) -> std::optional<Config>
     std::vector<std::pair<std::string, uint>> extracted;
     for (auto& entry : sections)
     {
-        if (std::string {entry.pItem }.starts_with("channel-"))
+        if (std::string {entry.pItem }.starts_with("channel."))
         {
             extracted.emplace_back(entry.pItem + 8, ini.GetLongValue(entry.pItem, "priority"));
         }

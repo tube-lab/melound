@@ -31,8 +31,8 @@ add_executable(melound src/main.cpp
         include/utils/CustomConstructor.h
         include/utils/TokenMiddleware.h
 
-        #src/app/WebServer.cpp
-        #src/app/ConfigParser.cpp
+        src/app/WebServer.cpp
+        src/app/ConfigParser.cpp
 
         src/hardware/amplifier/Driver.cpp
         src/hardware/amplifier/LampDriver.cpp
@@ -45,7 +45,7 @@ add_executable(melound src/main.cpp
         src/hardware/audio/Player.cpp
         src/hardware/audio/Utils.cpp
 
-        #src/hardware/speaker/Driver.cpp
+        src/hardware/speaker/Driver.cpp
 
         src/utils/TokenMiddleware.cpp
 )

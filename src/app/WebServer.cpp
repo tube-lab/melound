@@ -142,22 +142,23 @@ auto WebServer::LongPolling(const std::future<void>& f) noexcept -> crow::respon
 
 auto WebServer::BindError(speaker::ActionError error) noexcept -> crow::response
 {
-    if (error == speaker::AE_ChannelOpened) return crow::response { 400, "ChannelOpened" };
-    if (error == speaker::AE_ChannelClosed) return crow::response { 400, "ChannelClosed" };
-    if (error == speaker::AE_ChannelInactive) return crow::response { 400, "ChannelInactive" };
-    if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "IncompatibleTrack" };
-    if (error == speaker::AE_ChannelNotFound) return crow::response {400, "ChannelNotFound" };
+    if (error == speaker::AE_ChannelOpened) return crow::response { 400, "400 Channel opened" };
+    if (error == speaker::AE_ChannelClosed) return crow::response { 400, "400 Channel closed" };
+    if (error == speaker::AE_ChannelInactive) return crow::response { 400, "400 Channel inactive" };
+    if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "400 Incompatible track" };
+    if (error == speaker::AE_ChannelNotFound) return crow::response {400, "400 Channel not found" };
+    std::unreachable();
 }
 
 auto WebServer::BindState(speaker::ChannelState state) noexcept -> crow::response
 {
     if (state == speaker::CS_Closed) return crow::response { "Closed" };
     if (state == speaker::CS_Opened) return crow::response { "Opened" };
-    if (state == speaker::CS_PendingShutdown) return crow::response { "PendingShutdown" };
-    if (state == speaker::CS_PendingActivation) return crow::response { "PendingActivation" };
-    if (state == speaker::CS_PendingDeactivation) return crow::response { "PendingDeactivation" };
-    if (state == speaker::CS_PendingUrgentActivation) return crow::response { "PendingUrgentActivation" };
-    if (state == speaker::CS_PendingUrgentDeactivation) return crow::response { "PendingUrgentDeactivation" };
+    if (state == speaker::CS_Active) return crow::response { "Active" };
+    if (state == speaker::CS_PendingTermination) return crow::response { "Pending termination" };
+    if (state == speaker::CS_PendingActivation) return crow::response { "Pending activation" };
+    if (state == speaker::CS_PendingDeactivation) return crow::response { "Pending deactivation" };
+    std::unreachable();
 }
 
 auto WebServer::Urgent(const crow::request& request) noexcept -> bool

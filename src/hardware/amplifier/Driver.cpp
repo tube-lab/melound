@@ -46,7 +46,7 @@ auto Driver::DurationLeft(uint channel) const noexcept -> std::expected<time_t, 
     });
 }
 
-auto Driver::Startup(bool urgently) noexcept -> std::future<void>
+auto Driver::StartUp(bool urgently) noexcept -> std::future<void>
 {
     std::lock_guard _ { DeviceStateLock_ };
     {
@@ -57,7 +57,7 @@ auto Driver::Startup(bool urgently) noexcept -> std::future<void>
     }
 }
 
-auto Driver::Shutdown(bool urgently) noexcept -> std::future<void>
+auto Driver::ShutDown(bool urgently) noexcept -> std::future<void>
 {
     std::lock_guard _ { DeviceStateLock_ };
     {
@@ -137,7 +137,7 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
         std::unique_lock _ { DeviceStateLock_ };
         auto time = TimeNow();
 
-        // Resolve Startup/Shutdown calls when the device is already active/inactive.
+        // Resolve StartUp/ShutDown calls when the device is already active/inactive.
         FulfillListeners(Working_ ? ActivationListeners_ : DeactivationListeners_);
 
         if (Working_ != DesiredWorking_)
@@ -168,7 +168,7 @@ auto Driver::ActionWrapper(uint channel) const noexcept -> std::expected<void, A
 {
     std::lock_guard _ { DeviceStateLock_ };
     {
-        if (!Working_) return std::unexpected { AE_Inactive };
+        if (!Working_) return std::unexpected {AE_Shutdown };
         if (!OpenedChannels_[channel]) return std::unexpected { AE_ChannelClosed };
         return {};
     }

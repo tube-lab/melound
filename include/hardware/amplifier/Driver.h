@@ -56,20 +56,20 @@ namespace ml::amplifier
         /** Appends the track to the channel' queue, requires the device and channel is active. */
         auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError>;
 
-        /** Skips the first track in the channel' queue, requires the device to be active and the channel is opened. */
+        /** Skips the first track in the channel' queue, requires the device to be active and the channel to be opened. */
         auto Skip(uint channel) noexcept -> std::expected<void, ActionError>;
 
-        /** Clears the channel' queue, requires the device to be active and the channel is opened. */
+        /** Clears the channel' queue, requires the device to be active and the channel to be opened. */
         auto Clear(uint channel) noexcept -> std::expected<void, ActionError>;
 
-        /** Estimates how much playback time is left for the particular channel, requires the device to be active and the channel is opened. */
+        /** Estimates how much playback time is left for the particular channel, requires the device to be active and the channel to be opened. */
         auto DurationLeft(uint channel) const noexcept -> std::expected<time_t, ActionError>;
 
         /** Requests the activation of the amplifier, so it can play sound. */
-        auto Startup(bool urgently) noexcept -> std::future<void>;
+        auto StartUp(bool urgently) noexcept -> std::future<void>;
 
         /** Requests the deactivation of the amplifier, after completion the amplifier won't be able to play sound. */
-        auto Shutdown(bool urgently) noexcept -> std::future<void>;
+        auto ShutDown(bool urgently) noexcept -> std::future<void>;
 
         /** Reserves the channel for playback, fails if the channel has already been opened. */
         auto Open(uint channel) noexcept -> bool;
