@@ -97,10 +97,10 @@ namespace ml::speaker
         auto State(const std::string& channel) const noexcept -> Result<ChannelState>;
 
         /** Returns the longest duration that the activation of channel may take. */
-        auto ActivationDuration() const noexcept -> time_t;
+        auto ActivationDuration(bool urgently) const noexcept -> time_t;
 
         /** Returns the longest duration that the activation of channel may take. */
-        auto DeactivationDuration() const noexcept -> time_t;
+        auto DeactivationDuration(bool urgently) const noexcept -> time_t;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;

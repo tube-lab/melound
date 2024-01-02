@@ -10,7 +10,7 @@ auto Driver::Enqueue(uint channel, const audio::Track& track) -> std::expected<s
         auto p = DoEnqueue(channel, track);
         if (!p)
         {
-            return std::unexpected {AE_IncompatibleTrack };
+            return std::unexpected { AE_IncompatibleTrack };
         }
 
         return std::move(*p);
@@ -59,7 +59,7 @@ auto Driver::Startup(bool urgently) noexcept -> std::future<void>
 
 auto Driver::Shutdown(bool urgently) noexcept -> std::future<void>
 {
-    std::lock_guard _ {DeviceStateLock_ };
+    std::lock_guard _ { DeviceStateLock_ };
     {
         DesiredWorking_ = false;
         UrgentStateChange_ = urgently;
@@ -73,6 +73,7 @@ auto Driver::Open(uint channel) noexcept -> bool
     if (!OpenedChannels_[channel])
     {
         DoOpen(channel);
+        OpenedChannels_[channel] = true;
         return true;
     }
 
@@ -84,6 +85,7 @@ auto Driver::Close(uint channel) noexcept -> bool
     if (OpenedChannels_[channel])
     {
         DoClose(channel);
+        OpenedChannels_[channel] = false;
         return true;
     }
 
@@ -166,7 +168,7 @@ auto Driver::ActionWrapper(uint channel) const noexcept -> std::expected<void, A
 {
     std::lock_guard _ { DeviceStateLock_ };
     {
-        if (!Working_) return std::unexpected {AE_Inactive };
+        if (!Working_) return std::unexpected { AE_Inactive };
         if (!OpenedChannels_[channel]) return std::unexpected { AE_ChannelClosed };
         return {};
     }

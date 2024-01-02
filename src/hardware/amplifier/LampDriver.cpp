@@ -33,7 +33,7 @@ auto LampDriver::Create(const LampConfig& cfg) noexcept -> std::shared_ptr<LampD
 
 auto LampDriver::DoEnqueue(uint channel, const ml::audio::Track& track) -> std::optional<std::future<void>>
 {
-    return std::optional<std::future<void>>();
+    return Mixer_->Enqueue(channel, track);
 }
 
 void LampDriver::DoSkip(uint channel) noexcept

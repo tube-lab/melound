@@ -72,15 +72,13 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
     // Activate/deactivate channel
     CROW_POST_ROUTE(app, "/<string>/activate")([&](const std::string& channel)
     {
-        char* flag = crow::request().url_params.get("urgent");
-        auto r = speaker->Activate(channel, flag != nullptr);
+        auto r = speaker->Activate(channel, Urgent(crow::request()));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
     CROW_POST_ROUTE(app, "/<string>/deactivate")([&](const std::string& channel)
     {
-        char* flag = crow::request().url_params.get("urgent");
-        auto r = speaker->Deactivate(channel, flag != nullptr);
+        auto r = speaker->Deactivate(channel, Urgent(crow::request()));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
@@ -106,6 +104,13 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
         return r ? crow::response { "Ok" } : BindError(r.error());
     });
 
+    // State getters
+    CROW_ROUTE(app, "/<string>/state")([&](const std::string& channel)
+    {
+        auto r = speaker->State(channel);
+        return r ? BindState(r.value()) : BindError(r.error());
+    });
+
     CROW_ROUTE(app, "/duration-left")([&]()
     {
         auto r = speaker->DurationLeft();
@@ -114,15 +119,15 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     CROW_ROUTE(app, "/activation-duration")([&]()
     {
-        return speaker->ActivationDuration();
+        return speaker->ActivationDuration(Urgent(crow::request()));
     });
 
     CROW_ROUTE(app, "/deactivation-duration")([&]()
     {
-        return speaker->DeactivationDuration();
+        return speaker->DeactivationDuration(Urgent(crow::request()));
     });
 
-    CROW_LOG_INFO << "Created the web-server. Running it on port " << port;
+    CROW_LOG_INFO << "Created the web-server. Running it on the port " << port;
     app.multithreaded().port(port);
     app.multithreaded().run();
 
@@ -142,4 +147,20 @@ auto WebServer::BindError(speaker::ActionError error) noexcept -> crow::response
     if (error == speaker::AE_ChannelInactive) return crow::response { 400, "ChannelInactive" };
     if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "IncompatibleTrack" };
     if (error == speaker::AE_ChannelNotFound) return crow::response {400, "ChannelNotFound" };
+}
+
+auto WebServer::BindState(speaker::ChannelState state) noexcept -> crow::response
+{
+    if (state == speaker::CS_Closed) return crow::response { "Closed" };
+    if (state == speaker::CS_Opened) return crow::response { "Opened" };
+    if (state == speaker::CS_PendingShutdown) return crow::response { "PendingShutdown" };
+    if (state == speaker::CS_PendingActivation) return crow::response { "PendingActivation" };
+    if (state == speaker::CS_PendingDeactivation) return crow::response { "PendingDeactivation" };
+    if (state == speaker::CS_PendingUrgentActivation) return crow::response { "PendingUrgentActivation" };
+    if (state == speaker::CS_PendingUrgentDeactivation) return crow::response { "PendingUrgentDeactivation" };
+}
+
+auto WebServer::Urgent(const crow::request& request) noexcept -> bool
+{
+    return request.url_params.get("urgent") != nullptr;
 }
