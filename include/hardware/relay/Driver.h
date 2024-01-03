@@ -24,7 +24,7 @@ namespace ml::relay
      * The relay utilizes DTR line of RS232 port.
      * Fully exception and thread safe.
      */
-    class Driver : public CustomConstructor
+    class Driver : public utils::CustomConstructor
     {
         int PortFd_;
         std::string Port_;

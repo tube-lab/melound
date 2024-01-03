@@ -33,7 +33,7 @@ auto Driver::Open(const std::string& channel) noexcept -> Result<>
         }
 
         Channels_[index].State = CS_Opened;
-        Channels_[index].ExpiresAt = TimeNow() + 1000;
+        Channels_[index].ExpiresAt = utils::Time::Now() + 1000;
         return {};
     });
 }
@@ -49,7 +49,7 @@ auto Driver::Prolong(const std::string& channel) noexcept -> Result<>
             return std::unexpected { AE_ChannelClosed };
         }
 
-        Channels_[index].ExpiresAt = TimeNow() + 1000;
+        Channels_[index].ExpiresAt = utils::Time::Now() + 1000;
         return {};
     });
 }
@@ -195,7 +195,7 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
     while (!token.stop_requested())
     {
         std::unique_lock _ { ChannelsLock_ };
-        auto time = TimeNow();
+        auto time = utils::Time::Now();
 
         // Terminate expired channels
         for (uint64_t i = 0; i < Channels_.size(); ++i)

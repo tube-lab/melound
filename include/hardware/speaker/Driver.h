@@ -40,7 +40,7 @@ namespace ml::speaker
      * Main features:
      * - All channels related function fail if the channel isn't active.
      */
-    class Driver : public CustomConstructor
+    class Driver : public utils::CustomConstructor
     {
         struct Channel
         {

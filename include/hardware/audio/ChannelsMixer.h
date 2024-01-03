@@ -26,7 +26,7 @@ namespace ml::audio
      * Warnings:
      * - Each channel is muted by default. This allows you to upload all the necessary tracks into it.
      */
-    class ChannelsMixer : public CustomConstructor
+    class ChannelsMixer : public utils::CustomConstructor
     {
         std::vector<std::shared_ptr<Player>> Channels_ {};
 

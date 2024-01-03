@@ -52,8 +52,15 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     // Create the server & the API
     // For docs refer to API.md
-    crow::App<TokenMiddleware> app { 
-        TokenMiddleware { config->Token } 
+    crow::App<web::CorsMiddleware, web::ApiTokenMiddleware> app {
+        web::CorsMiddleware { web::CorsRules {
+            .Origin = std::nullopt,
+            .Headers = std::nullopt,
+            .Methods = { "GET"_method, "POST"_method }
+        }},
+        web::ApiTokenMiddleware {
+            config->Token
+        }
     };
 
     // Session management
@@ -135,7 +142,7 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     CROW_ROUTE(app, "/working")([&]()
     {
-        return speaker->Working();
+        return std::to_string(speaker->Working());
     });
 
     CROW_LOG_INFO << "Created the web-server. Running it on the port " << port;

@@ -7,8 +7,10 @@
 #include "hardware/audio/TrackLoader.h"
 #include "hardware/speaker/Driver.h"
 
+#include "web/ApiTokenMiddleware.h"
+#include "web/CorsMiddleware.h"
+
 #include "utils/CustomConstructor.h"
-#include "utils/TokenMiddleware.h"
 
 #include <memory>
 #include <crow/app.h>
@@ -21,7 +23,7 @@ namespace ml::app
      *
      * For API reference look on API.md.
      */
-    class WebServer : public CustomConstructor
+    class WebServer : public utils::CustomConstructor
     {
     public:
         /** Creates and runs the application. Logs everything to the console. */

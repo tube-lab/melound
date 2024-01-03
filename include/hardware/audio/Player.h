@@ -29,7 +29,7 @@ namespace ml::audio
      * Warnings:
      * - The player is paused by default.
      */
-    class Player : public CustomConstructor
+    class Player : public utils::CustomConstructor
     {
         struct Entry
         {

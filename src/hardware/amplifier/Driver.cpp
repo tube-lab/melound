@@ -131,11 +131,11 @@ Driver::Driver(const Config& config) noexcept
 
 void Driver::Mainloop(const std::stop_token& token) noexcept
 {
-    auto startTime = TimeNow();
+    auto startTime = utils::Time::Now();
     while (!token.stop_requested())
     {
         std::unique_lock _ { DeviceStateLock_ };
-        auto time = TimeNow();
+        auto time = utils::Time::Now();
 
         // Resolve StartUp/ShutDown calls when the device is already active/inactive.
         FulfillListeners(Working_ ? ActivationListeners_ : DeactivationListeners_);

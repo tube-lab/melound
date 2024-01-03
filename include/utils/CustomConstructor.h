@@ -1,7 +1,7 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-namespace ml
+namespace ml::utils
 {
     class CustomConstructor
     {

@@ -3,12 +3,16 @@
 
 #include <chrono>
 
-// TODO: Rewrite and move code to cpp file.
-namespace ml
+namespace ml::utils
 {
-    inline auto TimeNow() noexcept -> time_t
+    /**
+     * @brief Utils for working with the time.
+     * @safety Fully exception and thread safe.
+     */
+    class Time
     {
-        using namespace std::chrono;
-        return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-    }
+    public:
+        /** Returns the timestamp based on the system time. */
+        static auto Now() noexcept -> time_t;
+    };
 }

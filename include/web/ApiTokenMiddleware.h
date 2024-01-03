@@ -3,13 +3,13 @@
 
 #include <crow/middleware.h>
 
-namespace ml
+namespace ml::web
 {
     /**
      * @brief Basic middleware for permitting access to API by constant token.
      * @safety Fully exception and thread safe.
      */
-    class TokenMiddleware
+    class ApiTokenMiddleware
     {
         std::string Token_;
 
@@ -17,7 +17,7 @@ namespace ml
         struct context {};
 
         /** Creates the middleware, the token can't be changed later. */
-        TokenMiddleware(std::string_view token) noexcept;
+        ApiTokenMiddleware(std::string_view token) noexcept;
 
         /** Checks whether the valid access token is provided within the request. */
         void before_handle(crow::request& req, crow::response& res, context& ctx);

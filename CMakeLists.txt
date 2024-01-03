@@ -29,7 +29,10 @@ add_executable(melound src/main.cpp
 
         include/utils/Time.h
         include/utils/CustomConstructor.h
-        include/utils/TokenMiddleware.h
+
+        include/web/CorsRules.h
+        include/web/ApiTokenMiddleware.h
+        include/web/CorsMiddleware.h
 
         src/app/WebServer.cpp
         src/app/ConfigParser.cpp
@@ -47,7 +50,9 @@ add_executable(melound src/main.cpp
 
         src/hardware/speaker/Driver.cpp
 
-        src/utils/TokenMiddleware.cpp
+        src/web/ApiTokenMiddleware.cpp
+        src/utils/Time.cpp
+        src/web/CorsMiddleware.cpp
 )
 
 # Add SDL2 library

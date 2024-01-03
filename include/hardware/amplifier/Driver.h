@@ -38,7 +38,7 @@ namespace ml::amplifier
      * 6. The driver MUST be completely exception and thread safe.
      * 7. The driver MUST start up/shut down as fast as possible when this is required urgently.
      */
-    class Driver : public CustomConstructor
+    class Driver : public utils::CustomConstructor
     {
         time_t StartupDuration_;
         time_t ShutdownDuration_;
