@@ -3,7 +3,7 @@
 
 #include "ConfigParser.h"
 
-#include "hardware/amplifier/LampDriver.h"
+#include "hardware/amplifier/lamp/LampDriver.h"
 #include "hardware/audio/TrackLoader.h"
 #include "hardware/speaker/Driver.h"
 

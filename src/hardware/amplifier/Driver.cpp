@@ -168,7 +168,7 @@ auto Driver::ActionWrapper(uint channel) const noexcept -> std::expected<void, A
 {
     std::lock_guard _ { DeviceStateLock_ };
     {
-        if (!Working_) return std::unexpected {AE_Shutdown };
+        if (!Working_) return std::unexpected { AE_Shutdown };
         if (!OpenedChannels_[channel]) return std::unexpected { AE_ChannelClosed };
         return {};
     }

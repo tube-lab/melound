@@ -1,5 +1,5 @@
 // Created by Tube Lab. Part of the meloun project.
-#include "hardware/amplifier/LampDriver.h"
+#include "hardware/amplifier/lamp/LampDriver.h"
 using namespace ml::amplifier;
 
 auto LampDriver::Create(const LampConfig& cfg) noexcept -> std::shared_ptr<LampDriver>
@@ -27,6 +27,7 @@ auto LampDriver::Create(const LampConfig& cfg) noexcept -> std::shared_ptr<LampD
 
     driver->PowerRelay_ = relay;
     driver->Mixer_ = mixer;
+    driver->CoolingDuration_ = cfg.CoolingDuration;
 
     return std::shared_ptr<LampDriver>(driver);
 }
@@ -70,6 +71,7 @@ bool LampDriver::DoActivation(time_t time, time_t elapsed, bool urgently) noexce
 
 bool LampDriver::DoDeactivation(time_t time, time_t elapsed, bool urgently) noexcept
 {
+    Mixer_->ClearAll();
     PowerRelay_->Open();
     DeactivatedAt_ = time;
     return true;

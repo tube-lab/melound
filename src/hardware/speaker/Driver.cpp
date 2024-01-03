@@ -106,7 +106,7 @@ auto Driver::Enqueue(const std::string& channel, const audio::Track& audio) noex
     return MapToIndex(channel).and_then([&](uint index) -> Result<std::future<void>>
     {
         auto result = Amplifier_->Enqueue(index, audio);
-        return result ? std::unexpected { BindDriverError(result.error()) } : Result<std::future<void>> { std::move(result.value()) };
+        return result ? Result<std::future<void>> { std::move(result.value()) } : std::unexpected { BindDriverError(result.error()) };
     });
 }
 
@@ -116,7 +116,7 @@ auto Driver::Clear(const std::string& channel) noexcept -> Result<>
     return MapToIndex(channel).and_then([&](uint index) -> Result<>
     {
         auto result = Amplifier_->Skip(index);
-        return result ? std::unexpected { BindDriverError(result.error()) } : Result<> {};
+        return result ? Result<> {} : std::unexpected { BindDriverError(result.error()) };
     });
 }
 
@@ -126,7 +126,7 @@ auto Driver::Skip(const std::string& channel) noexcept -> Result<>
     return MapToIndex(channel).and_then([&](uint index) -> Result<>
     {
         auto result = Amplifier_->Clear(index);
-        return result ? std::unexpected { BindDriverError(result.error()) } : Result<> {};
+        return result ? Result<> {} : std::unexpected { BindDriverError(result.error()) };
     });
 }
 
@@ -136,7 +136,7 @@ auto Driver::DurationLeft(const std::string& channel) const noexcept -> Result<t
     return MapToIndex(channel).and_then([&](uint index) -> Result<time_t>
     {
         auto result = Amplifier_->DurationLeft(index);
-        return result ? std::unexpected { BindDriverError(result.error()) } : Result<time_t> { result.value() };
+        return result ? Result<time_t> { result.value() } : std::unexpected { BindDriverError(result.error()) };
     });
 }
 
@@ -151,7 +151,7 @@ auto Driver::DurationLeft() const noexcept -> Result<time_t>
             longest = result && (!longest || *result >= *longest) ? *result : *longest;
         }
 
-        return longest ? Result < time_t > {*longest } : std::unexpected { AE_AllChannelsClosed };
+        return longest ? Result<time_t> { *longest } : std::unexpected { AE_AllChannelsClosed };
     }
 }
 
@@ -190,24 +190,25 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
         }
 
         // Update states
-        for (auto& ch : Channels_)
+        for (uint i = 0; i < Channels_.size(); ++i)
         {
-            if (ch.State == CS_PendingActivation && Amplifier_->Working())
+            if (Channels_[i].State == CS_PendingActivation && Amplifier_->Working())
             {
-                ch.State = CS_Active;
-                FulfillListeners(ch.ActivationListeners);
+                Channels_[i].State = CS_Active;
+                FulfillListeners(Channels_[i].ActivationListeners);
             }
 
-            if (ch.State == CS_PendingTermination && !Amplifier_->Working())
+            if (Channels_[i].State == CS_PendingTermination && !Amplifier_->Working())
             {
-                ch.State = CS_Closed;
-                FulfillListeners(ch.DeactivationListeners);
+                Channels_[i].State = CS_Closed;
+                Amplifier_->Close(i);
+                FulfillListeners(Channels_[i].DeactivationListeners);
             }
 
-            if (ch.State == CS_PendingDeactivation && !Amplifier_->Working())
+            if (Channels_[i].State == CS_PendingDeactivation && !Amplifier_->Working())
             {
-                ch.State = CS_Opened;
-                FulfillListeners(ch.DeactivationListeners);
+                Channels_[i].State = CS_Opened;
+                FulfillListeners(Channels_[i].DeactivationListeners);
             }
         }
 
@@ -238,12 +239,23 @@ auto Driver::DeactivateChannel(uint channel, bool urgently, bool terminate) noex
 
     if (active > 1)
     {
-        Channels_[channel].State = terminate ? CS_Closed : CS_Opened;
+        if (terminate)
+        {
+            Amplifier_->Close(channel);
+            Channels_[channel].State = CS_Closed;
+        }
+        else
+        {
+            Channels_[channel].State = CS_Opened;
+        }
+
         return MakeFulfilledFuture();
     }
 
+    // Actually shut the amplifier down
     Amplifier_->ShutDown(urgently);
-    Channels_[channel].State = terminate ? CS_PendingDeactivation : CS_PendingTermination;
+    Channels_[channel].State = terminate ? CS_PendingTermination : CS_PendingDeactivation;
+    Channels_[channel].ExpiresAt = std::nullopt;
 
     Channels_[channel].DeactivationListeners.emplace_back();
     return Channels_[channel].DeactivationListeners.back().get_future();

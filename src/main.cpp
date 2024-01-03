@@ -1,9 +1,4 @@
 #include "app/WebServer.h"
-#include "hardware/amplifier/LampDriver.h"
-#include "hardware/amplifier/LampConfig.h"
-
-#include <fstream>
-#include <iostream>
 
 // POST {sink-id}/open
 // POST {sink-id}/prolong

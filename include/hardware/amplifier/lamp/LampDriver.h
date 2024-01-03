@@ -1,8 +1,8 @@
 // Created by Tube Lab. Part of the meloun project.
 #pragma once
 
-#include "Driver.h"
 #include "LampConfig.h"
+#include "../Driver.h"
 
 #include "hardware/audio/ChannelsMixer.h"
 #include "hardware/relay/Driver.h"

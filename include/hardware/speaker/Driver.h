@@ -88,17 +88,20 @@ namespace ml::speaker
         /** Determines for how long the channel will continue to play. */
         auto DurationLeft(const std::string& channel) const noexcept -> Result<time_t>;
 
-        /** Determines the duration of the longest channel. Fails if no channels are active. */
-        auto DurationLeft() const noexcept -> Result<time_t>;
-
         /** Returns the state of particular channel. */
         auto State(const std::string& channel) const noexcept -> Result<ChannelState>;
 
-        /** Returns the longest duration that the activation of channel may take. */
+        /** Returns the longest duration that the activation of a channel may take. */
         auto ActivationDuration(bool urgently) const noexcept -> time_t;
 
-        /** Returns the longest duration that the activation of channel may take. */
+        /** Returns the longest duration that the activation of a channel may take. */
         auto DeactivationDuration(bool urgently) const noexcept -> time_t;
+
+        /** Determines the duration of the longest channel. Fails if no channels are active. */
+        auto DurationLeft() const noexcept -> Result<time_t>;
+
+        /** Returns whether the amplifier is working now. */
+        auto AmplifierWorking() const noexcept -> bool;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;

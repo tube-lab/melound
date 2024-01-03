@@ -44,6 +44,9 @@ namespace ml::audio
         /** Resumes a previously paused playback. */
         void Resume() noexcept;
 
+        /** Clear the playback queue of all channels. */
+        void ClearAll() noexcept;
+
         /** Appends the audio track to the particular channel. Doesn't clear the pause state. */
         auto Enqueue(uint channel, const Track& audio) noexcept -> std::optional<std::future<void>>;
 

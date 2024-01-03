@@ -43,6 +43,14 @@ void ChannelsMixer::Resume() noexcept
     }
 }
 
+void ChannelsMixer::ClearAll() noexcept
+{
+    for (auto& channel : Channels_)
+    {
+        channel->Clear();
+    }
+}
+
 auto ChannelsMixer::Enqueue(uint channel, const Track& audio) noexcept -> std::optional<std::future<void>>
 {
     return Channels_[channel]->Enqueue(audio);

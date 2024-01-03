@@ -24,9 +24,15 @@ namespace ml::amplifier
      * Defines a universal API for managing different amplifier.
      * Takes care about internal states and the async mainloop.
      *
+     * Provides 3 different kinds of APIs:
+     * 1. Channels Open/Close/Opened -> Equivalent of table reservation system.
+     * 2. Amplifier StartUp/ShutDown/Working -> Physically turns on/off the switch.
+     * 3. Actions Enqueue/Skip/Clear/DurationLeft -> Manages the audio playback for the channel.
+     *
      * Requirements for concrete implementations:
      * 1. When the channel with index=i is opened all the channels where index < i should be muted.
      * 2. When the channel is closed its playback queue should be immediately cleared.
+     * 3. When the amplifier shuts down the playback queue for all channels should be cleared.
      * 4. All the actions MUST NOT be invocable when the device is inactive.
      * 5. The driver MUST NOT care about the runtime errors or the hardware disconnections.
      * 6. The driver MUST be completely exception and thread safe.
