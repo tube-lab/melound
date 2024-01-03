@@ -11,7 +11,7 @@ void TokenMiddleware::before_handle(crow::request& req, crow::response& res, Tok
     if (req.get_header_value("Authorization") != Token_)
     {
         res.code = 401;
-        res.write("Unauthorized");
+        res.write("401 Unauthorized");
         res.end();
     }
 }

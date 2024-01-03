@@ -106,7 +106,6 @@ namespace ml::speaker
     private:
         void Mainloop(const std::stop_token& token) noexcept;
         auto MapToIndex(const std::string& channel) const noexcept -> Result<uint>;
-
         auto CountActive() const noexcept -> uint;
 
         static auto MakeFulfilledFuture() noexcept -> std::future<void>;

@@ -31,6 +31,6 @@ namespace ml::app
         static auto LongPolling(const std::future<void>& f) noexcept -> crow::response;
         static auto BindError(speaker::ActionError error) noexcept -> crow::response;
         static auto BindState(speaker::ChannelState state) noexcept -> crow::response;
-        static auto Urgent(const crow::request& request) noexcept -> bool;
+        static auto Urgent(const crow::query_string& str) noexcept -> bool;
     };
 }

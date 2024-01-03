@@ -72,13 +72,13 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
     // Activate/deactivate channel
     CROW_POST_ROUTE(app, "/<string>/activate")([&](const crow::request& req, const std::string& channel)
     {
-        auto r = speaker->Activate(channel, Urgent(req));
+        auto r = speaker->Activate(channel, Urgent(req.get_body_params()));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
     CROW_POST_ROUTE(app, "/<string>/deactivate")([&](const crow::request& req, const std::string& channel)
     {
-        auto r = speaker->Deactivate(channel, Urgent(req));
+        auto r = speaker->Deactivate(channel, Urgent(req.get_body_params()));
         return r ? LongPolling(r.value()) : BindError(r.error());
     });
 
@@ -120,12 +120,12 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
     // Speaker state getters
     CROW_ROUTE(app, "/activation-duration")([&](const crow::request& req)
     {
-        return speaker->ActivationDuration(Urgent(req));
+        return speaker->ActivationDuration(Urgent(req.url_params));
     });
 
     CROW_ROUTE(app, "/deactivation-duration")([&](const crow::request& req)
     {
-        return speaker->DeactivationDuration(Urgent(req));
+        return speaker->DeactivationDuration(Urgent(req.url_params));
     });
 
     CROW_ROUTE(app, "/duration-left")([&]()
@@ -172,7 +172,7 @@ auto WebServer::BindState(speaker::ChannelState state) noexcept -> crow::respons
     std::unreachable();
 }
 
-auto WebServer::Urgent(const crow::request& request) noexcept -> bool
+auto WebServer::Urgent(const crow::query_string& str) noexcept -> bool
 {
-    return request.url_params.get("urgent") != nullptr;
+    return str.get("urgent") != nullptr;
 }
