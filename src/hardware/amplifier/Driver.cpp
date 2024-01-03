@@ -92,11 +92,6 @@ auto Driver::Close(uint channel) noexcept -> bool
     return false;
 }
 
-auto Driver::Working() const noexcept -> bool
-{
-    return Working_;
-}
-
 auto Driver::Opened(uint channel) const noexcept -> bool
 {
     return OpenedChannels_[channel];
@@ -105,6 +100,11 @@ auto Driver::Opened(uint channel) const noexcept -> bool
 auto Driver::Channels() const noexcept -> size_t
 {
     return Channels_;
+}
+
+auto Driver::Working() const noexcept -> bool
+{
+    return Working_;
 }
 
 auto Driver::StartupDuration(bool urgently) const noexcept -> time_t

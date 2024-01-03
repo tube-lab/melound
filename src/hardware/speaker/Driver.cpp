@@ -65,10 +65,7 @@ auto Driver::Activate(const std::string& channel, bool urgently) noexcept -> Res
         }
 
         // Cancel the pending deactivation
-        if (Channels_[index].State == CS_PendingDeactivation || Channels_[index].State == CS_PendingTermination)
-        {
-            FulfillListeners(Channels_[index].DeactivationListeners);
-        }
+        FulfillListeners(Channels_[index].DeactivationListeners);
 
         // If the amplifier is working -> immediately return the result
         if (Amplifier_->Working())
@@ -77,15 +74,15 @@ auto Driver::Activate(const std::string& channel, bool urgently) noexcept -> Res
             return MakeFulfilledFuture();
         }
 
-        // Otherwise try to use the code
+        // Otherwise try to start the amplifier up
         Amplifier_->StartUp(urgently);
         Channels_[index].State = CS_PendingActivation;
 
-        Channels_[index].ActivationListeners.emplace_back();
-        return Channels_[index].ActivationListeners.back().get_future();
+        return Channels_[index].ActivationListeners.emplace_back().get_future();
     });
 }
 
+// Bad Code area
 auto Driver::Deactivate(const std::string& channel, bool urgently) noexcept -> Result<std::future<void>>
 {
     std::lock_guard _ { ChannelsLock_ };
@@ -96,7 +93,22 @@ auto Driver::Deactivate(const std::string& channel, bool urgently) noexcept -> R
             return std::unexpected { AE_ChannelInactive };
         }
 
-        return DeactivateChannel(index, urgently, false);
+        // Cancel the listeners waiting for activation
+        FulfillListeners(Channels_[index].ActivationListeners);
+
+        // Determine whether the amplifier should shut down
+        if (CountActive() > 1)
+        {
+            Channels_[index].State = CS_Opened;
+            return MakeFulfilledFuture();
+        }
+
+        // Actually shut the amplifier down
+        Amplifier_->ShutDown(urgently);
+        Channels_[index].State = CS_PendingDeactivation;
+        Channels_[index].ExpiresAt = std::nullopt;
+
+        return Channels_[index].DeactivationListeners.emplace_back().get_future();
     });
 }
 
@@ -140,21 +152,6 @@ auto Driver::DurationLeft(const std::string& channel) const noexcept -> Result<t
     });
 }
 
-auto Driver::DurationLeft() const noexcept -> Result<time_t>
-{
-    std::lock_guard _ { ChannelsLock_ };
-    {
-        std::optional<time_t> longest;
-        for (uint i = 0; i < Channels_.size(); ++i)
-        {
-            auto result = Amplifier_->DurationLeft(i);
-            longest = result && (!longest || *result >= *longest) ? *result : *longest;
-        }
-
-        return longest ? Result<time_t> { *longest } : std::unexpected { AE_AllChannelsClosed };
-    }
-}
-
 auto Driver::State(const std::string &channel) const noexcept -> Result<ChannelState>
 {
     return MapToIndex(channel).and_then([&](uint index) -> Result<ChannelState>
@@ -173,6 +170,26 @@ auto Driver::DeactivationDuration(bool urgently) const noexcept -> time_t
     return Amplifier_->ShutdownDuration(urgently);
 }
 
+auto Driver::DurationLeft() const noexcept -> time_t
+{
+    std::lock_guard _ { ChannelsLock_ };
+    {
+        time_t longest = 0;
+        for (uint i = 0; i < Channels_.size(); ++i)
+        {
+            auto result = Amplifier_->DurationLeft(i);
+            longest = (result && *result >= longest) ? *result : longest;
+        }
+
+        return longest;
+    }
+}
+
+auto Driver::Working() const noexcept -> bool
+{
+    return Amplifier_->Working();
+}
+
 void Driver::Mainloop(const std::stop_token& token) noexcept
 {
     while (!token.stop_requested())
@@ -180,12 +197,26 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
         std::unique_lock _ { ChannelsLock_ };
         auto time = TimeNow();
 
-        // Close expired channels
+        // Terminate expired channels
         for (uint64_t i = 0; i < Channels_.size(); ++i)
         {
             if (Channels_[i].ExpiresAt && time >= *Channels_[i].ExpiresAt)
             {
-                DeactivateChannel(i, false, true);
+                // Cancel the listeners waiting for activation
+                FulfillListeners(Channels_[i].ActivationListeners);
+
+                // Determine whether the amplifier should shut down
+                if (CountActive() > 1)
+                {
+                    Amplifier_->Close(i);
+                    Channels_[i].State = CS_Closed;
+                    continue;
+                }
+
+                // Actually shut the amplifier down
+                Amplifier_->ShutDown(false);
+                Channels_[i].State = CS_PendingTermination;
+                Channels_[i].ExpiresAt = std::nullopt;
             }
         }
 
@@ -200,8 +231,8 @@ void Driver::Mainloop(const std::stop_token& token) noexcept
 
             if (Channels_[i].State == CS_PendingTermination && !Amplifier_->Working())
             {
-                Channels_[i].State = CS_Closed;
                 Amplifier_->Close(i);
+                Channels_[i].State = CS_Closed;
                 FulfillListeners(Channels_[i].DeactivationListeners);
             }
 
@@ -223,42 +254,12 @@ auto Driver::MapToIndex(const std::string& channel) const noexcept -> Result<uin
     return it == ChannelsMap_.end() ? std::unexpected { AE_ChannelNotFound } : Result<uint> { it->second };
 }
 
-auto Driver::DeactivateChannel(uint channel, bool urgently, bool terminate) noexcept -> std::future<void>
+auto Driver::CountActive() const noexcept -> uint
 {
-    // Cancel the listeners waiting for activation
-    if (Channels_[channel].State == CS_PendingActivation)
-    {
-        FulfillListeners(Channels_[channel].ActivationListeners);
-    }
-
-    // Determine whether the amplifier should shut down
-    auto active = std::count_if(Channels_.begin(), Channels_.end(), [&](const Channel& ch)
+    return std::count_if(Channels_.begin(), Channels_.end(), [&](const Channel& ch)
     {
         return ch.State == CS_Active;
     });
-
-    if (active > 1)
-    {
-        if (terminate)
-        {
-            Amplifier_->Close(channel);
-            Channels_[channel].State = CS_Closed;
-        }
-        else
-        {
-            Channels_[channel].State = CS_Opened;
-        }
-
-        return MakeFulfilledFuture();
-    }
-
-    // Actually shut the amplifier down
-    Amplifier_->ShutDown(urgently);
-    Channels_[channel].State = terminate ? CS_PendingTermination : CS_PendingDeactivation;
-    Channels_[channel].ExpiresAt = std::nullopt;
-
-    Channels_[channel].DeactivationListeners.emplace_back();
-    return Channels_[channel].DeactivationListeners.back().get_future();
 }
 
 auto Driver::MakeFulfilledFuture() noexcept -> std::future<void>

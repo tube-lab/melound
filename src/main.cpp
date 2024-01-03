@@ -9,8 +9,11 @@
 
 // GET {sink-id}/state
 // GET {sink-id}/duration-left
-// GET {sink-id}/activation-duration
-// GET {sink-id}/deactivation-duration
+
+// GET /activation-duration
+// GET /deactivation-duration
+// GET /duration-left
+// GET /working
 
 using namespace ml;
 using namespace audio;

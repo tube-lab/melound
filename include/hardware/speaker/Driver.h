@@ -97,16 +97,18 @@ namespace ml::speaker
         /** Returns the longest duration that the activation of a channel may take. */
         auto DeactivationDuration(bool urgently) const noexcept -> time_t;
 
-        /** Determines the duration of the longest channel. Fails if no channels are active. */
-        auto DurationLeft() const noexcept -> Result<time_t>;
+        /** Determines for how long the speaker will continue to play. */
+        auto DurationLeft() const noexcept -> time_t;
 
         /** Returns whether the amplifier is working now. */
-        auto AmplifierWorking() const noexcept -> bool;
+        auto Working() const noexcept -> bool;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;
         auto MapToIndex(const std::string& channel) const noexcept -> Result<uint>;
-        auto DeactivateChannel(uint channel, bool urgently, bool terminate) noexcept -> std::future<void>;
+
+        auto CountActive() const noexcept -> uint;
+
         static auto MakeFulfilledFuture() noexcept -> std::future<void>;
         static void FulfillListeners(std::vector<std::promise<void>>& list) noexcept;
         static auto BindDriverError(amplifier::ActionError err) noexcept -> ActionError;

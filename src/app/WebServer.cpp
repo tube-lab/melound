@@ -104,19 +104,20 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
         return r ? crow::response { "Ok" } : BindError(r.error());
     });
 
-    // State getters
+    // Channel state getters
     CROW_ROUTE(app, "/<string>/state")([&](const std::string& channel)
     {
         auto r = speaker->State(channel);
         return r ? BindState(r.value()) : BindError(r.error());
     });
 
-    CROW_ROUTE(app, "/duration-left")([&]()
+    CROW_ROUTE(app, "/<string>/duration-left")([&](const std::string& channel)
     {
-        auto r = speaker->DurationLeft();
-        return r ? crow::response { "Ok" } : BindError(r.error());
+        auto r = speaker->DurationLeft(channel);
+        return r ? std::to_string(r.value()) : BindError(r.error());
     });
 
+    // Speaker state getters
     CROW_ROUTE(app, "/activation-duration")([&](const crow::request& req)
     {
         return speaker->ActivationDuration(Urgent(req));
@@ -125,6 +126,16 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
     CROW_ROUTE(app, "/deactivation-duration")([&](const crow::request& req)
     {
         return speaker->DeactivationDuration(Urgent(req));
+    });
+
+    CROW_ROUTE(app, "/duration-left")([&]()
+    {
+        return std::to_string(speaker->DurationLeft());
+    });
+
+    CROW_ROUTE(app, "/working")([&]()
+    {
+        return speaker->Working();
     });
 
     CROW_LOG_INFO << "Created the web-server. Running it on the port " << port;

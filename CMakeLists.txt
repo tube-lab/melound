@@ -13,8 +13,8 @@ add_executable(melound src/main.cpp
         include/hardware/amplifier/Driver.h
         include/hardware/amplifier/Config.h
         include/hardware/amplifier/ActionError.h
-        include/hardware/amplifier/LampDriver.h
-        include/hardware/amplifier/LampConfig.h
+        include/hardware/amplifier/lamp/LampDriver.h
+        include/hardware/amplifier/lamp/LampConfig.h
 
         include/hardware/relay/Driver.h
 
@@ -35,7 +35,7 @@ add_executable(melound src/main.cpp
         src/app/ConfigParser.cpp
 
         src/hardware/amplifier/Driver.cpp
-        src/hardware/amplifier/LampDriver.cpp
+        src/hardware/amplifier/lamp/LampDriver.cpp
 
         src/hardware/relay/Driver.cpp
 

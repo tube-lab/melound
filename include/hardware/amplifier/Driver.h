@@ -83,14 +83,14 @@ namespace ml::amplifier
         /** Releases the channel, fails if the channel isn't open. */
         auto Close(uint channel) noexcept -> bool;
 
-        /** Returns whether the device is turned on. */
-        auto Working() const noexcept -> bool;
-
         /** Returns whether the channel is opened. */
         auto Opened(uint channel) const noexcept -> bool;
 
         /** Returns the number of amplifier' channels. */
         auto Channels() const noexcept -> size_t;
+
+        /** Returns whether the device is turned on. */
+        auto Working() const noexcept -> bool;
 
         /** Returns how much time the device may take in order to start up in the worst case. */
         auto StartupDuration(bool urgently) const noexcept -> time_t;
