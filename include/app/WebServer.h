@@ -8,8 +8,6 @@
 #include "hardware/speaker/Driver.h"
 
 #include "web/ApiTokenMiddleware.h"
-#include "web/CorsMiddleware.h"
-
 #include "utils/CustomConstructor.h"
 
 #include <memory>

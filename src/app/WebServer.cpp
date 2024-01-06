@@ -52,16 +52,13 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     // Create the server & the API
     // For docs refer to API.md
-    crow::App<web::CorsMiddleware, web::ApiTokenMiddleware> app {
-        web::CorsMiddleware { web::CorsRules {
-            .Origin = std::nullopt,
-            .Headers = std::nullopt,
-            .Methods = { "GET"_method, "POST"_method }
-        }},
-        web::ApiTokenMiddleware {
-            config->Token
-        }
+    crow::App<web::ApiTokenMiddleware> app {
+        web::ApiTokenMiddleware { config->Token }
     };
+
+    app.cors().global()
+        .enable()
+        .allow_credentials();
 
     // Session management
     CROW_POST_ROUTE(app, "/<string>/open")([&](const std::string& channel)
