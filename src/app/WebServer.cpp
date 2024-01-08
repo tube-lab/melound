@@ -2,22 +2,20 @@
 #include "app/WebServer.h"
 using namespace ml::app;
 
-#define CROW_POST_ROUTE(app, url) CROW_ROUTE(app, url).methods("POST"_method)
-
-auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
+auto WebServer::Run(const std::string& configPath) noexcept -> bool
 {
     // Load the config
     std::ifstream stream { configPath };
     if (!stream)
     {
-        CROW_LOG_CRITICAL << "Can't open the config file.";
+        std::cerr << "Can't open the config file.";
         return false;
     }
 
     auto config = ConfigParser::FromIni({ std::istreambuf_iterator<char> { stream }, std::istreambuf_iterator<char> {} });
     if (!config)
     {
-        CROW_LOG_CRITICAL << "Can't parse the config.";
+        std::cerr << "Can't parse the config.";
         return false;
     }
 
@@ -34,7 +32,7 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     if (!amplifier)
     {
-        CROW_LOG_CRITICAL << "Can't create the amplifier driver";
+        std::cerr << "Can't create the amplifier driver. Check audio-device and power-power validity.\n";
         return false;
     }
 
@@ -46,137 +44,163 @@ auto WebServer::Run(const std::string& configPath, uint port) noexcept -> bool
 
     if (!speaker)
     {
-        CROW_LOG_CRITICAL << "Can't create the speaker driver";
+        std::cerr << "Can't create the speaker driver.\n";
         return false;
     }
 
+    std::cout << "Connected to the audio device: " << config->AudioDevice.value_or("default") << '\n';
+    std::cout << "Connected to the relay: " << config->PowerPort << '\n';
+
     // Create the server & the API
     // For docs refer to API.md
-    crow::App<web::ApiTokenMiddleware> app {
-        web::ApiTokenMiddleware { config->Token }
-    };
+    httplib::Server app;
+    app.new_task_queue = [] { return new httplib::ThreadPool(8096); };
 
-    app.cors().global()
-        .enable()
+    // Enable CORS
+    app.set_cors(R"(.*)")
         .allow_credentials();
 
-    // Session management
-    CROW_POST_ROUTE(app, "/<string>/open")([&](const std::string& channel)
+    // Create authorization by token and logging
+    app.set_pre_routing_handler([&](const auto& req, auto& res)
     {
-        auto r = speaker->Open(channel);
-        return r ? crow::response { "Ok" } : BindError(r.error());
+        std::cout << httplib::HttpMethod::to_string(req.method) << " request to " << req.path
+                  << " from " << req.remote_addr << std::endl;
+
+        if (req.get_header_value("Authorization") != config->Token)
+        {
+            res = Response(401, "401 Unauthorized");
+            return httplib::Server::HandlerResponse::Handled;
+        }
+
+        return httplib::Server::HandlerResponse::Unhandled;
     });
 
-    CROW_POST_ROUTE(app, "/<string>/prolong")([&](const std::string& channel)
+    // Session management
+    app.Post("/:channel/open", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->Prolong(channel);
-        return r ? crow::response { "Ok" } : BindError(r.error());
+        auto r = speaker->Open(req.path_params.at("channel"));
+        res = r ? Response(200, "Ok") : BindError(r.error());
+    });
+
+    app.Post("/:channel/prolong", [&](const httplib::Request& req, httplib::Response& res)
+    {
+        auto r = speaker->Prolong(req.path_params.at("channel"));
+        res = r ? Response(200, "Ok") : BindError(r.error());
     });
 
     // Activate/deactivate channel
-    CROW_POST_ROUTE(app, "/<string>/activate")([&](const crow::request& req, const std::string& channel)
+    app.Post("/:channel/activate", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->Activate(channel, Urgent(req.get_body_params()));
-        return r ? LongPolling(r.value()) : BindError(r.error());
+        auto r = speaker->Activate(req.path_params.at("channel"), req.has_param("urgently"));
+        res = r ? LongPolling(r.value()) : BindError(r.error());
     });
 
-    CROW_POST_ROUTE(app, "/<string>/deactivate")([&](const crow::request& req, const std::string& channel)
+    app.Post("/:channel/deactivate", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->Deactivate(channel, Urgent(req.get_body_params()));
-        return r ? LongPolling(r.value()) : BindError(r.error());
+        auto r = speaker->Deactivate(req.path_params.at("channel"), req.has_param("urgently"));
+        res = r ? LongPolling(r.value()) : BindError(r.error());
     });
 
     // Playback management
-    CROW_POST_ROUTE(app, "/<string>/play")([&](const crow::request& req, const std::string& channel)
+    app.Post("/:channel/play", [&](const httplib::Request& req, httplib::Response& res)
     {
-        std::string raw = crow::utility::base64decode(req.body);
+        std::string raw = req.body;
         std::vector<char> decoded { raw.begin(), raw.end() };
 
         auto track = audio::TrackLoader::FromWav(decoded);
         if (!track)
         {
-            return crow::response { 400, "400 Track Not Wav" };
+            res = Response(400, "400 Track Not Wav");
+            return;
         }
 
-        auto r = speaker->Enqueue(channel, *track);
-        return r ? LongPolling(r.value()) : BindError(r.error());
+        auto r = speaker->Enqueue(req.path_params.at("channel"), *track);
+        res = r ? LongPolling(r.value()) : BindError(r.error());
     });
 
-    CROW_POST_ROUTE(app, "/<string>/clear")([&](const std::string& channel)
+    app.Post("/:channel/skip", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->Clear(channel);
-        return r ? crow::response { "Ok" } : BindError(r.error());
+        auto r = speaker->Skip(req.path_params.at("channel"));
+        res = r ? Response(200, "Ok") : BindError(r.error());
+    });
+
+    app.Post("/:channel/clear", [&](const httplib::Request& req, httplib::Response& res)
+    {
+        auto r = speaker->Clear(req.path_params.at("channel"));
+        res = r ? Response(200, "Ok") : BindError(r.error());
     });
 
     // Channel state getters
-    CROW_ROUTE(app, "/<string>/state")([&](const std::string& channel)
+    app.Get("/:channel/state", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->State(channel);
-        return r ? BindState(r.value()) : BindError(r.error());
+        auto r = speaker->State(req.path_params.at("channel"));
+        res = r ? BindState(r.value()) : BindError(r.error());
     });
 
-    CROW_ROUTE(app, "/<string>/duration-left")([&](const std::string& channel)
+    app.Get("/:channel/duration-left", [&](const httplib::Request& req, httplib::Response& res)
     {
-        auto r = speaker->DurationLeft(channel);
-        return r ? std::to_string(r.value()) : BindError(r.error());
+        auto r = speaker->DurationLeft(req.path_params.at("channel"));
+        res = r ? Response(200, std::to_string(r.value())) : BindError(r.error());
     });
 
     // Speaker state getters
-    CROW_ROUTE(app, "/activation-duration")([&](const crow::request& req)
+    app.Get("/activation-duration", [&](const httplib::Request& req, httplib::Response& res)
     {
-        return speaker->ActivationDuration(Urgent(req.url_params));
+        res = Response(200, std::to_string(speaker->ActivationDuration(req.has_param("urgently"))));
     });
 
-    CROW_ROUTE(app, "/deactivation-duration")([&](const crow::request& req)
+    app.Get("/deactivation-duration", [&](const httplib::Request& req, httplib::Response& res)
     {
-        return speaker->DeactivationDuration(Urgent(req.url_params));
+        res = Response(200, std::to_string(speaker->DeactivationDuration(req.has_param("urgently"))));
     });
 
-    CROW_ROUTE(app, "/duration-left")([&]()
+    app.Get("/duration-left", [&](const httplib::Request& req, httplib::Response& res)
     {
-        return std::to_string(speaker->DurationLeft());
+        res = Response(200, std::to_string(speaker->DurationLeft()));
     });
 
-    CROW_ROUTE(app, "/working")([&]()
+    app.Get("/working", [&](const httplib::Request& req, httplib::Response& res)
     {
-        return std::to_string(speaker->Working());
+        res = Response(200, std::to_string(speaker->Working()));
     });
 
-    CROW_LOG_INFO << "Created the web-server. Running it on the port " << port;
-    app.multithreaded().port(port);
-    app.multithreaded().run();
+    std::cout << "Created the web-server. Running it on the port " << config->Port << std::endl;
+    app.listen("127.0.0.1", config->Port);
 
     return true;
 }
 
-auto WebServer::LongPolling(const std::future<void>& f) noexcept -> crow::response
+auto WebServer::Response(int status, const std::string &text) noexcept -> httplib::Response 
+{
+    auto r = httplib::Response {};
+    r.status = status;
+    r.set_content(text, "text/plain");
+    return r;
+}
+
+auto WebServer::LongPolling(const std::future<void>& f) noexcept -> httplib::Response
 {
     f.wait();
-    return crow::response { "Ok" };
+    return Response(200, "Ok");
 }
 
-auto WebServer::BindError(speaker::ActionError error) noexcept -> crow::response
+auto WebServer::BindError(speaker::ActionError error) noexcept -> httplib::Response
 {
-    if (error == speaker::AE_ChannelOpened) return crow::response { 400, "400 Channel Opened" };
-    if (error == speaker::AE_ChannelClosed) return crow::response { 400, "400 Channel Closed" };
-    if (error == speaker::AE_ChannelInactive) return crow::response { 400, "400 Channel Inactive" };
-    if (error == speaker::AE_IncompatibleTrack) return crow::response { 400, "400 Incompatible Track" };
-    if (error == speaker::AE_ChannelNotFound) return crow::response { 404, "404 Channel Not Found" };
+    if (error == speaker::AE_ChannelOpened) return Response(400, "400 Channel Opened");
+    if (error == speaker::AE_ChannelClosed) return Response(400, "400 Channel Closed");
+    if (error == speaker::AE_ChannelInactive) return Response(400, "400 Channel Inactive");
+    if (error == speaker::AE_IncompatibleTrack) return Response(400, "400 Incompatible Track");
+    if (error == speaker::AE_ChannelNotFound) return Response(404, "404 Channel Not Found");
     std::unreachable();
 }
 
-auto WebServer::BindState(speaker::ChannelState state) noexcept -> crow::response
+auto WebServer::BindState(speaker::ChannelState state) noexcept -> httplib::Response
 {
-    if (state == speaker::CS_Closed) return crow::response { "Closed" };
-    if (state == speaker::CS_Opened) return crow::response { "Opened" };
-    if (state == speaker::CS_Active) return crow::response { "Active" };
-    if (state == speaker::CS_PendingTermination) return crow::response { "Pending Termination" };
-    if (state == speaker::CS_PendingActivation) return crow::response { "Pending Activation" };
-    if (state == speaker::CS_PendingDeactivation) return crow::response { "Pending Deactivation" };
+    if (state == speaker::CS_Closed) return Response(200, "Closed");
+    if (state == speaker::CS_Opened) return Response(200, "Opened");
+    if (state == speaker::CS_Active) return Response(200, "Active");
+    if (state == speaker::CS_PendingTermination) return Response(200, "Pending Termination");
+    if (state == speaker::CS_PendingActivation) return Response(200, "Pending Activation");
+    if (state == speaker::CS_PendingDeactivation) return Response(200, "Pending Deactivation");
     std::unreachable();
-}
-
-auto WebServer::Urgent(const crow::query_string& str) noexcept -> bool
-{
-    return str.get("urgent") != nullptr;
 }

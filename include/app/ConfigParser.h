@@ -20,6 +20,6 @@ namespace ml::app
     {
     public:
         /** Tries to parse the config from ini file. */
-        static auto FromIni(const std::string& data) -> std::optional<Config>;
+        static auto FromIni(const std::string& data) noexcept -> std::optional<Config>;
     };
 }

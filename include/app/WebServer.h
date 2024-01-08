@@ -7,11 +7,10 @@
 #include "hardware/audio/TrackLoader.h"
 #include "hardware/speaker/Driver.h"
 
-#include "web/ApiTokenMiddleware.h"
 #include "utils/CustomConstructor.h"
 
 #include <memory>
-#include <crow/app.h>
+#include <httplib.h>
 
 namespace ml::app
 {
@@ -25,12 +24,12 @@ namespace ml::app
     {
     public:
         /** Creates and runs the application. Logs everything to the console. */
-        static auto Run(const std::string& configPath, uint port) noexcept -> bool;
+        static auto Run(const std::string& configPath) noexcept -> bool;
 
     private:
-        static auto LongPolling(const std::future<void>& f) noexcept -> crow::response;
-        static auto BindError(speaker::ActionError error) noexcept -> crow::response;
-        static auto BindState(speaker::ChannelState state) noexcept -> crow::response;
-        static auto Urgent(const crow::query_string& str) noexcept -> bool;
+        static auto Response(int status, const std::string& text) noexcept -> httplib::Response;
+        static auto LongPolling(const std::future<void>& f) noexcept -> httplib::Response;
+        static auto BindError(speaker::ActionError error) noexcept -> httplib::Response;
+        static auto BindState(speaker::ChannelState state) noexcept -> httplib::Response;
     };
 }

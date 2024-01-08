@@ -28,6 +28,9 @@ auto Player::Create(const std::optional<std::string>& device) -> std::shared_ptr
         return nullptr;
     }
 
+    // Unpause the device ( we are omitting the bug in SDL library )
+    SDL_PauseAudioDevice(out, false);
+
     player->Spec_ = spec;
     player->Out_ = out;
     player->Paused_ = true;
@@ -59,9 +62,6 @@ auto Player::Enqueue(const Track& audio) noexcept -> std::optional<std::future<v
         Buffer_.emplace_back(adjusted->Buffer(), std::promise<void> {}, 0);
         BufferLength_ += adjusted->Buffer().size();
 
-        // Possibly unpause the audio device
-        ReviseDevicePause();
-
         return Buffer_.back().Listener.get_future();
     }
 }
@@ -72,11 +72,10 @@ void Player::Clear() noexcept
     {
         while (!Buffer_.empty())
         {
+            BufferLength_ -= Buffer_.front().Data.size() - Buffer_.front().Idx;
             Buffer_.front().Listener.set_value();
             Buffer_.pop_front();
         }
-
-        ReviseDevicePause();
     }
 }
 
@@ -94,13 +93,11 @@ void Player::Skip() noexcept
 void Player::Pause() noexcept
 {
     Paused_ = true;
-    ReviseDevicePause();
 }
 
 void Player::Resume() noexcept
 {
     Paused_ = false;
-    ReviseDevicePause();
 }
 
 void Player::Mute() noexcept
@@ -137,6 +134,12 @@ void Player::AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept
     // Empty the buffer ( required by SDL docs )
     SDL_memset(stream, 0, len);
 
+    // If the device is paused - do nothing
+    if (self->Paused_)
+    {
+        return;
+    }
+
     // Feed audio data into the stream
     size_t remaining = std::min(self->BufferLength_, (size_t)len);
     uint8_t* dst = stream;
@@ -166,28 +169,13 @@ void Player::AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept
 
     lock.unlock();
 
-    //#include <iostream>
     //std::cout << remaining << ' ' << self->Buffer_.size() << ' ' << self->BufferLength_
     //                   << " muted=" << self->Muted_ << "\n"; // TODO: Remove debug
 }
 
 void Player::DropFirstEntry() noexcept
 {
+    BufferLength_ -= Buffer_.front().Data.size() - Buffer_.front().Idx;
     Buffer_.front().Listener.set_value();
     Buffer_.pop_front();
-
-    ReviseDevicePause();
-}
-
-void Player::ReviseDevicePause() noexcept
-{
-    // Nothing to play, wait for a new audio to be enqueued
-    if (Buffer_.empty())
-    {
-        SDL_PauseAudioDevice(Out_, true);
-        return;
-    }
-
-    // Use the internal state
-    SDL_PauseAudioDevice(Out_, Paused_);
 }

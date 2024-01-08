@@ -21,6 +21,6 @@ using namespace ml::amplifier;
 
 auto main() -> int
 {
-    auto result = ml::app::WebServer::Run("./speaker.cfg", 8080);
+    auto result = ml::app::WebServer::Run("./speaker.cfg");
     return result;
 }

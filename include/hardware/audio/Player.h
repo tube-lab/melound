@@ -46,7 +46,7 @@ namespace ml::audio
 
         std::deque<Entry> Buffer_;
         size_t BufferLength_ {};
-        mutable std::mutex BufferLock_;
+        mutable std::recursive_mutex BufferLock_;
 
     public:
         /** Creates a player that utilizes the given audio output. */
@@ -88,6 +88,5 @@ namespace ml::audio
     private:
         static void AudioSupplier(void* userdata, uint8_t* stream, int len) noexcept;
         void DropFirstEntry() noexcept;
-        void ReviseDevicePause() noexcept;
     };
 }

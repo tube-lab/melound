@@ -154,6 +154,7 @@ auto Driver::DurationLeft(const std::string& channel) const noexcept -> Result<t
 
 auto Driver::State(const std::string &channel) const noexcept -> Result<ChannelState>
 {
+    std::lock_guard _ { ChannelsLock_ };
     return MapToIndex(channel).and_then([&](uint index) -> Result<ChannelState>
     {
         return Channels_[index].State;

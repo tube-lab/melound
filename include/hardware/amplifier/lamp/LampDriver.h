@@ -10,7 +10,7 @@
 namespace ml::amplifier
 {
     /**
-     * @brief A driver for lamp based amplifier.
+     * @brief A driver for the lamp based amplifier.
      * @safety Fully exception and thread safe.
      *
      * Due to old nature, such amplifiers always require warmup, so the driver takes care about this.

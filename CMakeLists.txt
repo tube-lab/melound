@@ -30,8 +30,6 @@ add_executable(melound src/main.cpp
         include/utils/Time.h
         include/utils/CustomConstructor.h
 
-        include/web/ApiTokenMiddleware.h
-
         src/app/WebServer.cpp
         src/app/ConfigParser.cpp
 
@@ -48,7 +46,6 @@ add_executable(melound src/main.cpp
 
         src/hardware/speaker/Driver.cpp
 
-        src/web/ApiTokenMiddleware.cpp
         src/utils/Time.cpp
 )
 
