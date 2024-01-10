@@ -82,7 +82,6 @@ auto Driver::Activate(const std::string& channel, bool urgently) noexcept -> Res
     });
 }
 
-// Bad Code area
 auto Driver::Deactivate(const std::string& channel, bool urgently) noexcept -> Result<std::future<void>>
 {
     std::lock_guard _ { ChannelsLock_ };

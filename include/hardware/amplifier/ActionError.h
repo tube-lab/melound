@@ -11,7 +11,7 @@
 
 namespace ml::amplifier
 {
-    /**  */
+    /** // TODO: Write docs */
     enum ActionError
     {
         AE_Shutdown = 0, ///<

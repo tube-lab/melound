@@ -9,8 +9,7 @@ auto Driver::Create(const std::string& port) noexcept -> std::shared_ptr<Driver>
     int fd = open (port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0)
     {
-        // TODO: turned off for debugging purposes
-        //return nullptr;
+        return nullptr;
     }
 
     // Do the init ( on fail all operations will be undone )
@@ -54,17 +53,16 @@ auto Driver::Create(const std::string& port) noexcept -> std::shared_ptr<Driver>
 
     if (!r)
     {
-        // TODO: turned off for debugging purposes
-        //flock(fd, LOCK_UN);
-        //close(fd);
-        //return nullptr;
+        flock(fd, LOCK_UN);
+        close(fd);
+        return nullptr;
     }
 
     // Return the created driver
     auto driver = std::make_shared<Driver>();
     driver->PortFd_ = fd;
     driver->Port_ = port;
-    driver->Close(); // enforce the safe state
+    driver->Open(); // enforce the safe state
 
     return driver;
 }

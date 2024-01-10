@@ -59,7 +59,7 @@ namespace ml::amplifier
         std::jthread Mainloop_;
 
     public:
-        /** Appends the track to the channel' queue, requires the device and channel is active. */
+        /** Appends the track to the channel' queue, requires the device to be active and channel to be opened. */
         auto Enqueue(uint channel, const audio::Track& track) -> std::expected<std::future<void>, ActionError>;
 
         /** Skips the first track in the channel' queue, requires the device to be active and the channel to be opened. */
