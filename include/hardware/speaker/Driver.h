@@ -100,8 +100,8 @@ namespace ml::speaker
         /** Determines for how long the speaker will continue to play. */
         auto DurationLeft() const noexcept -> time_t;
 
-        /** Returns whether the amplifier has been turned on. */
-        auto TurnedOn() const noexcept -> bool;
+        /** Returns whether the amplifier is ready to play the audio. */
+        auto Ready() const noexcept -> bool;
 
     private:
         void Mainloop(const std::stop_token& token) noexcept;

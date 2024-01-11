@@ -26,7 +26,7 @@ namespace ml::amplifier
      *
      * Provides 3 different kinds of APIs:
      * 1. Channels Open/Close/Opened -> Equivalent of table reservation system.
-     * 2. Amplifier StartUp/ShutDown/TurnedOn -> Physically turns on/off the switch.
+     * 2. Amplifier StartUp/ShutDown/Ready -> Physically turns on/off the switch.
      * 3. Actions Enqueue/Skip/Clear/DurationLeft -> Manages the audio playback for the channel.
      *
      * Requirements for concrete implementations:
@@ -89,8 +89,8 @@ namespace ml::amplifier
         /** Returns the number of amplifier' channels. */
         auto Channels() const noexcept -> size_t;
 
-        /** Returns whether the device is turned on. */
-        auto TurnedOn() const noexcept -> bool;
+        /** Returns whether the device is ready for the playback. */
+        auto Ready() const noexcept -> bool;
 
         /** Returns how much time the device may take in order to start up in the worst case. */
         auto StartupDuration(bool urgently) const noexcept -> time_t;
