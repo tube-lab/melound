@@ -161,7 +161,7 @@ auto WebServer::Run(const std::string& configPath) noexcept -> bool
 
     app.Get("/working", [&](const httplib::Request& req, httplib::Response& res)
     {
-        res = Response(200, std::to_string(speaker->Working()));
+        res = Response(200, std::to_string(speaker->TurnedOn()));
     });
 
     std::cout << "Created the web-server. Running it on the port " << config->Port << std::endl;

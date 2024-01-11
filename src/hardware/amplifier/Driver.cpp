@@ -102,7 +102,7 @@ auto Driver::Channels() const noexcept -> size_t
     return Channels_;
 }
 
-auto Driver::Working() const noexcept -> bool
+auto Driver::TurnedOn() const noexcept -> bool
 {
     return Working_;
 }
