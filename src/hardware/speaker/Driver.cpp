@@ -126,7 +126,7 @@ auto Driver::Clear(const std::string& channel) noexcept -> Result<>
     std::lock_guard _ { ChannelsLock_ };
     return MapToIndex(channel).and_then([&](uint index) -> Result<>
     {
-        auto result = Amplifier_->Skip(index);
+        auto result = Amplifier_->Clear(index);
         return result ? Result<> {} : std::unexpected { BindDriverError(result.error()) };
     });
 }
@@ -136,7 +136,7 @@ auto Driver::Skip(const std::string& channel) noexcept -> Result<>
     std::lock_guard _ { ChannelsLock_ };
     return MapToIndex(channel).and_then([&](uint index) -> Result<>
     {
-        auto result = Amplifier_->Clear(index);
+        auto result = Amplifier_->Skip(index);
         return result ? Result<> {} : std::unexpected { BindDriverError(result.error()) };
     });
 }
